@@ -11,7 +11,8 @@ import requests
 import json
 import datetime
 import glob
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file
+import tomli
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response, stream_with_context
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -24,6 +25,20 @@ API_KEY = os.getenv("API_KEY", "default_api_key")
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev_secret_key")  # Set a secure key in .env for production
+
+# Load prompt configuration
+def load_prompt_config():
+    """Load prompts from the configuration file"""
+    config_path = os.path.join(os.path.dirname(__file__), "prompt_config.toml")
+    try:
+        with open(config_path, "rb") as f:
+            return tomli.load(f)
+    except Exception as e:
+        app.logger.error(f"Error loading prompt configuration: {str(e)}")
+        return {}
+
+# Load prompts
+PROMPTS = load_prompt_config()
 
 # API client functions
 def api_request(endpoint, method="GET", data=None, files=None):
@@ -200,6 +215,7 @@ def chat():
     
     message = data["message"]
     agent_id = data["agent_id"]
+    streaming = data.get("streaming", False)
     
     # Get agent profile
     try:
@@ -237,10 +253,13 @@ def chat():
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=anthropic_api_key)
         
-        # Create system prompt using profile information
-        system_prompt = f"""You are now acting as {profile['name']}, based on their provided information. Your goal is to respond to questions as if you were them, using their communication style, values, preferences, and knowledge. Only share information that has been explicitly provided in their profile or can be reasonably inferred from it. When asked about topics not covered in their profile, respond with how {profile['name']} would likely handle such a question based on their personality, without making up specific facts. Maintain their tone and speaking style in all responses. DONT USE MORE THAN 100 WORDS! DON'T ASK ANY FOLLOW UP QUESTSIONS!
-
-Here's information about {profile['name']}:"""
+        # Create system prompt using profile information and prompt config
+        chat_prompts = PROMPTS.get("chat", {})
+        system_prompt_template = chat_prompts.get("system_prompt", "You are acting as {name}.")
+        additional_instructions = chat_prompts.get("additional_instructions", "")
+        
+        # Format the system prompt with profile information
+        system_prompt = system_prompt_template.format(name=profile['name'])
         
         if profile.get('title'):
             system_prompt += f"\nProfessional Title: {profile['title']}"
@@ -254,16 +273,8 @@ Here's information about {profile['name']}:"""
             for item in profile['interview_data']:
                 system_prompt += f"\n\nQuestion: {item['question']}\nAnswer: {item['answer']}"
         
-        system_prompt += """
-
-When responding to the user:
-1. Stay in character as the person described above
-2. Use first-person perspective ("I" not "they")
-3. Be conversational and authentic to the person's style
-4. Draw on the background information to inform your responses
-5. If asked something you don't know, respond naturally without making up specific details
-6. Maintain the person's tone, vocabulary, and communication patterns
-"""
+        # Add additional instructions
+        system_prompt += additional_instructions
 
         # Add document context if available
         if agent_documents:
@@ -278,7 +289,48 @@ When responding to the user:
         conversation_key = f"conversation_{agent_id}"
         conversation_history = session.get(conversation_key, [])
         
-        # Generate response with Claude
+        # If streaming is requested, handle differently
+        if streaming:
+            def generate():
+                full_response = ""
+                
+                # Create a streaming response
+                with client.messages.stream(
+                    model="claude-3-7-sonnet-20250219",
+                    system=system_prompt,
+                    max_tokens=1000,
+                    messages=[
+                        *conversation_history,
+                        {"role": "user", "content": message}
+                    ]
+                ) as stream:
+                    # Yield each chunk as it arrives
+                    for chunk in stream:
+                        if chunk.type == "content_block_delta" and chunk.delta.type == "text":
+                            # Send the text chunk
+                            yield f"data: {json.dumps({'chunk': chunk.delta.text})}\n\n"
+                            full_response += chunk.delta.text
+                    
+                    # After streaming completes, update conversation history
+                    conversation_history.append({"role": "user", "content": message})
+                    conversation_history.append({"role": "assistant", "content": full_response})
+                    
+                    # Trim history if it gets too long (keep last 10 messages)
+                    if len(conversation_history) > 10:
+                        conversation_history = conversation_history[-10:]
+                    
+                    # Store updated history in session
+                    session[conversation_key] = conversation_history
+                    
+                    # Store the response text in the session for retrieval
+                    session["last_response_text"] = full_response
+                    
+                    # Send end of stream marker
+                    yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+            
+            return Response(stream_with_context(generate()), mimetype='text/event-stream')
+        
+        # Non-streaming response (original behavior)
         response = client.messages.create(
             model="claude-3-7-sonnet-20250219",
             system=system_prompt,
@@ -386,72 +438,18 @@ def generate_interview_questions():
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=anthropic_api_key)
         
-        # The interview prompt
-        prompt = """# Professional Experience & Hobbies Extraction
-
-You are a specialized interview system designed to extract specific information about a person's professional experience and hobbies to create their digital twin. Your goal is to generate MAXIMUM 10 QUESTIONS TOTAL that will help us understand:
-1) Their professional background, expertise, and work knowledge in detail
-2) Their hobbies and personal interests with specific examples
-
-Focus on questions that reveal concrete facts and specific examples rather than abstract preferences. Do not include questions about communication style, as this will be extracted from audio recordings. Do not exceed 15 questions under any circumstances.
-
-## Instructions
-
-1. Generate a diverse set of questions across the categories below. Focus on questions that reveal meaningful aspects of the person that would be important for realistic conversation simulation.
-
-2. Make questions specific, not generic. For example, instead of "What are your hobbies?" ask "What activity do you find yourself losing track of time while doing, and what about it captivates you?"
-
-3. Ask progressive questions that build on expected answers to create a natural conversational flow.
-
-4. Include both direct questions for factual information and indirect questions that reveal personality, values, and communication style.
-
-5. Consider the emotional dimension - ask questions that might reveal how the person responds to different emotional scenarios.
-
-## Focused Categories
-
-### Professional Experience
-- Their career path and specific roles they've held
-- Areas of professional expertise and specialized knowledge
-- Significant projects or achievements they could discuss in detail
-- How they talk about their industry or field
-- Factual information about their work that visitors might ask about
-- Common questions they receive about their profession
-- Professional opinions or perspectives they often share
-
-### Hobbies & Interests
-- Specific activities they engage in regularly
-- Detailed aspects of their hobbies they could discuss knowledgeably
-- How long they've been involved with these interests
-- Factual information about their hobbies that shows their expertise
-- Why they are drawn to these particular activities
-- Recommendations they typically give related to their interests
-- Personal experiences tied to their hobbies
-
-## Output Format
-
-1. Generate EXACTLY 10 QUESTIONS TOTAL across both categories (professional experience and hobbies).
-2. Distribute the questions roughly equally between the two categories.
-3. Each question should be designed to elicit specific, factual information or concrete examples.
-4. Present the questions in a conversational sequence that flows naturally.
-5. Prioritize questions that will generate responses useful for someone else chatting with this person's digital twin.
-6. Use clear, direct language that encourages detailed responses.
-7. Number each question clearly (1-10 maximum).
-8. Include a mix of questions about:
-   - Facts (specific information the digital twin should know)
-   - Experiences (detailed examples that demonstrate knowledge)
-   - Preferences (that show personality through interests)
-9. DO NOT include any questions about communication style, speaking patterns, or language preferences.
-10. Review your final output to confirm you have not exceeded 10 questions and that all questions focus specifically on professional experience or hobbies.
-
-Return ONLY the numbered questions as a JSON array, with no additional text or explanation."""
+        # Get interview prompts from config
+        interview_prompts = PROMPTS.get("interview", {})
+        questions_prompt = interview_prompts.get("questions_prompt", "Generate 10 interview questions.")
+        system_prompt = interview_prompts.get("interview_system_prompt", "You are a helpful assistant.")
         
         # Generate questions with Claude
         response = client.messages.create(
             model="claude-3-7-sonnet-20250219",
             max_tokens=1000,
-            system="You are a helpful assistant that generates interview questions according to the provided instructions. Return only the questions in a JSON array format.",
+            system=system_prompt,
             messages=[
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": questions_prompt}
             ],
             temperature=0.7
         )
@@ -501,6 +499,32 @@ def last_response_text():
     """Get the text of the last response"""
     text = session.get("last_response_text", "No response available")
     return jsonify({"text": text})
+
+@app.route("/stream-tts", methods=["POST"])
+def stream_tts():
+    """Stream text-to-speech for a completed response"""
+    data = request.json
+    
+    if not data or "text" not in data:
+        return jsonify({"error": "No text provided"}), 400
+    
+    voice_id = data.get("voice_id")
+    if not voice_id:
+        return jsonify({"error": "No voice ID provided"}), 400
+    
+    # Convert to speech
+    payload = {
+        "text": data["text"],
+        "voice_id": voice_id
+    }
+    
+    response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
+    
+    if status_code == 200:
+        # This is binary audio data
+        return response, 200, {"Content-Type": "audio/mpeg"}
+    
+    return jsonify({"error": "Error generating speech"}), status_code
 
 @app.route("/download-speech", methods=["POST"])
 def download_speech():
