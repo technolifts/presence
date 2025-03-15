@@ -526,3 +526,97 @@ nav a.active {
     margin-top: 8px;
     font-style: italic;
 }
+
+/* Interview Section */
+.interview-section {
+    margin-bottom: 30px;
+}
+
+.interview-container {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.question-container {
+    margin-bottom: 20px;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.response-container textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.interview-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.interview-progress {
+    margin-top: 20px;
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.interview-summary {
+    margin-top: 30px;
+}
+
+.summary-container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    border: 1px solid #e0e0e0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.response-summary {
+    margin-top: 10px;
+}
+
+.response-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.response-item:last-child {
+    border-bottom: none;
+}
+
+.response-question {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.response-answer {
+    color: #555;
+    white-space: pre-line;
+}

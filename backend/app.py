@@ -87,6 +87,13 @@ def clone_voice():
     profile_title = request.form.get("profile_title", "")
     profile_bio = request.form.get("profile_bio", "")
     
+    # Get interview data if available
+    interview_data = request.form.get("interview_data", "[]")
+    try:
+        interview_responses = json.loads(interview_data)
+    except:
+        interview_responses = []
+    
     # Create documents directory for this agent (will be populated later)
     documents_dir = os.path.join(app.root_path, "documents")
     os.makedirs(documents_dir, exist_ok=True)
@@ -125,6 +132,7 @@ def clone_voice():
                 "name": profile_name,
                 "title": profile_title,
                 "bio": profile_bio,
+                "interview_data": interview_responses,
                 "created_at": str(datetime.datetime.now())
             }
             
@@ -239,6 +247,12 @@ Here's information about {profile['name']}:"""
         
         if profile.get('bio'):
             system_prompt += f"\nBackground Information: {profile['bio']}"
+        
+        # Add interview data if available
+        if profile.get('interview_data') and len(profile['interview_data']) > 0:
+            system_prompt += "\n\nAdditional Information from Interview:"
+            for item in profile['interview_data']:
+                system_prompt += f"\n\nQuestion: {item['question']}\nAnswer: {item['answer']}"
         
         system_prompt += """
 
@@ -356,6 +370,131 @@ def delete_document(agent_id, filename):
         return jsonify(response)
     
     return jsonify(response), status_code
+
+@app.route("/generate-interview-questions", methods=["POST"])
+def generate_interview_questions():
+    """Generate interview questions using the provided prompt"""
+    try:
+        import anthropic
+        
+        # Get API key from environment
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            app.logger.error("ANTHROPIC_API_KEY not found in environment")
+            return jsonify({"error": "API key not configured"}), 500
+        
+        # Initialize Anthropic client
+        client = anthropic.Anthropic(api_key=anthropic_api_key)
+        
+        # The interview prompt
+        prompt = """# Professional Experience & Hobbies Extraction
+
+You are a specialized interview system designed to extract specific information about a person's professional experience and hobbies to create their digital twin. Your goal is to generate MAXIMUM 10 QUESTIONS TOTAL that will help us understand:
+1) Their professional background, expertise, and work knowledge in detail
+2) Their hobbies and personal interests with specific examples
+
+Focus on questions that reveal concrete facts and specific examples rather than abstract preferences. Do not include questions about communication style, as this will be extracted from audio recordings. Do not exceed 15 questions under any circumstances.
+
+## Instructions
+
+1. Generate a diverse set of questions across the categories below. Focus on questions that reveal meaningful aspects of the person that would be important for realistic conversation simulation.
+
+2. Make questions specific, not generic. For example, instead of "What are your hobbies?" ask "What activity do you find yourself losing track of time while doing, and what about it captivates you?"
+
+3. Ask progressive questions that build on expected answers to create a natural conversational flow.
+
+4. Include both direct questions for factual information and indirect questions that reveal personality, values, and communication style.
+
+5. Consider the emotional dimension - ask questions that might reveal how the person responds to different emotional scenarios.
+
+## Focused Categories
+
+### Professional Experience
+- Their career path and specific roles they've held
+- Areas of professional expertise and specialized knowledge
+- Significant projects or achievements they could discuss in detail
+- How they talk about their industry or field
+- Factual information about their work that visitors might ask about
+- Common questions they receive about their profession
+- Professional opinions or perspectives they often share
+
+### Hobbies & Interests
+- Specific activities they engage in regularly
+- Detailed aspects of their hobbies they could discuss knowledgeably
+- How long they've been involved with these interests
+- Factual information about their hobbies that shows their expertise
+- Why they are drawn to these particular activities
+- Recommendations they typically give related to their interests
+- Personal experiences tied to their hobbies
+
+## Output Format
+
+1. Generate EXACTLY 10 QUESTIONS TOTAL across both categories (professional experience and hobbies).
+2. Distribute the questions roughly equally between the two categories.
+3. Each question should be designed to elicit specific, factual information or concrete examples.
+4. Present the questions in a conversational sequence that flows naturally.
+5. Prioritize questions that will generate responses useful for someone else chatting with this person's digital twin.
+6. Use clear, direct language that encourages detailed responses.
+7. Number each question clearly (1-10 maximum).
+8. Include a mix of questions about:
+   - Facts (specific information the digital twin should know)
+   - Experiences (detailed examples that demonstrate knowledge)
+   - Preferences (that show personality through interests)
+9. DO NOT include any questions about communication style, speaking patterns, or language preferences.
+10. Review your final output to confirm you have not exceeded 10 questions and that all questions focus specifically on professional experience or hobbies.
+
+Return ONLY the numbered questions as a JSON array, with no additional text or explanation."""
+        
+        # Generate questions with Claude
+        response = client.messages.create(
+            model="claude-3-7-sonnet-20250219",
+            max_tokens=1000,
+            system="You are a helpful assistant that generates interview questions according to the provided instructions. Return only the questions in a JSON array format.",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        # Extract the response text
+        response_text = response.content[0].text
+        
+        # Parse the JSON array from the response
+        import json
+        import re
+        
+        # Try to extract a JSON array from the response
+        json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+        if json_match:
+            questions_json = json_match.group(0)
+            questions = json.loads(questions_json)
+        else:
+            # Fallback: extract numbered questions
+            questions = []
+            for line in response_text.split('\n'):
+                match = re.match(r'^\s*\d+\.\s*(.*)', line)
+                if match:
+                    questions.append(match.group(1))
+        
+        return jsonify({"questions": questions})
+    except Exception as e:
+        app.logger.error(f"Error generating interview questions: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/save-interview-responses", methods=["POST"])
+def save_interview_responses():
+    """Save interview responses to the user's profile"""
+    try:
+        data = request.json
+        responses = data.get("responses", [])
+        
+        # Store in session for now
+        session["interview_responses"] = responses
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        app.logger.error(f"Error saving interview responses: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/last-response-text")
 def last_response_text():

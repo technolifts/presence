@@ -70,6 +70,42 @@
                     </div>
                 </div>
             </section>
+
+            <section class="interview-section">
+                <h2>Tell Us About Yourself</h2>
+                <p>Answer a few questions to help your AI agent represent you better.</p>
+                
+                <div class="interview-container">
+                    <div id="questionContainer" class="question-container">
+                        <p class="question-text">Let's start with some questions to get to know you better. Ready to begin?</p>
+                        <button id="startInterviewBtn" class="btn secondary-btn">Start Interview</button>
+                    </div>
+                    
+                    <div id="responseContainer" class="response-container" style="display: none;">
+                        <textarea id="userResponse" placeholder="Type your answer here..."></textarea>
+                        <div class="interview-controls">
+                            <button id="nextQuestionBtn" class="btn primary-btn">Next Question</button>
+                            <button id="finishInterviewBtn" class="btn secondary-btn" style="display: none;">Finish Interview</button>
+                        </div>
+                    </div>
+                    
+                    <div id="interviewProgress" class="interview-progress">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <p><span id="currentQuestionNum">0</span> of <span id="totalQuestions">10</span> questions answered</p>
+                    </div>
+                    
+                    <div id="interviewSummary" class="interview-summary" style="display: none;">
+                        <h3>Interview Complete!</h3>
+                        <p>Thank you for sharing information about yourself. This will help your AI agent represent you better.</p>
+                        <div class="summary-container">
+                            <h4>Summary of Your Responses:</h4>
+                            <div id="responseSummary" class="response-summary"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
             
             <section class="recording-section">
                 <h2>Record Your Voice</h2>
@@ -166,5 +202,6 @@
 
     <script src="{{ url_for('static', filename='js/recorder.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/interview.js') }}"></script>
 </body>
 </html>

@@ -143,7 +143,13 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('profile_name', name);
             formData.append('profile_title', title);
             formData.append('profile_bio', bio);
-            
+        
+            // Add interview responses if available
+            if (window.interviewSystem && window.interviewSystem.isInterviewComplete) {
+                const interviewResponses = window.interviewSystem.getResponses();
+                formData.append('interview_data', JSON.stringify(interviewResponses));
+            }
+        
             // Show loading state
             createVoiceButton.disabled = true;
             cloneStatus.style.display = 'block';
