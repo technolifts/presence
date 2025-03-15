@@ -126,9 +126,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Create interview data from our questions and recordings
             const interviewData = [];
-            for (let i = 0; i < questions.length && i < recordedResponses.length; i++) {
+            // Get questions and responses from the interview system if available
+            const interviewQuestions = window.interviewSystem ? window.interviewSystem.questions : [];
+            const recordedResponses = window.interviewSystem ? window.interviewSystem.audioResponses : [];
+            
+            for (let i = 0; i < interviewQuestions.length && i < recordedResponses.length; i++) {
                 interviewData.push({
-                    question: questions[i],
+                    question: interviewQuestions[i],
                     answer: `[Voice recording ${i+1}]`
                 });
             }
@@ -492,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Copy share link
+    const copyLinkButton = document.getElementById('copyLink');
     if (copyLinkButton) {
         copyLinkButton.addEventListener('click', () => {
             shareLinkInput.select();
