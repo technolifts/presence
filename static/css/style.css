@@ -626,3 +626,41 @@ nav a.active {
     color: #555;
     white-space: pre-line;
 }
+/* Audio loading and error indicators */
+.audio-loading {
+    font-style: italic;
+    color: #666;
+    margin-top: 8px;
+    padding: 4px 8px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.audio-error {
+    color: #d32f2f;
+    margin-top: 8px;
+    padding: 4px 8px;
+    background-color: #ffebee;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.audio-error:hover {
+    background-color: #ffcdd2;
+}
+
+.play-audio-btn {
+    margin-top: 8px;
+    padding: 6px 12px;
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.play-audio-btn:hover {
+    background-color: #3367d6;
+}

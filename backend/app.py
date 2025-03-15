@@ -317,6 +317,10 @@ def chat():
                 ) as stream:
                     # Log the stream creation
                     app.logger.info("Stream created successfully")
+                
+                    # Track if we've received any content
+                    has_content = False
+                
                     # Yield each chunk as it arrives
                     for chunk in stream:
                         if chunk.type == "content_block_delta" and chunk.delta.type == "text":
@@ -325,21 +329,30 @@ def chat():
                             app.logger.info(f"Sending chunk: {chunk_data}")
                             yield f"data: {chunk_data}\n\n"
                             full_response += chunk.delta.text
-                    
+                            has_content = True
+                
+                    # If we didn't get any content, generate a fallback response
+                    if not has_content:
+                        fallback_response = "I'm sorry, I couldn't generate a response at this time. Please try again."
+                        fallback_chunk = json.dumps({'chunk': fallback_response})
+                        app.logger.warning("No content received from API, sending fallback response")
+                        yield f"data: {fallback_chunk}\n\n"
+                        full_response = fallback_response
+                
                     # After streaming completes, update conversation history
                     conversation_history.append({"role": "user", "content": message})
                     conversation_history.append({"role": "assistant", "content": full_response})
-                    
+                
                     # Trim history if it gets too long (keep last 10 messages)
                     if len(conversation_history) > 10:
                         conversation_history = conversation_history[-10:]
-                    
+                
                     # Store updated history in session
                     session[conversation_key] = conversation_history
-                    
+                
                     # Store the response text in the session for retrieval
                     session["last_response_text"] = full_response
-                    
+                
                     # Send end of stream marker
                     end_data = json.dumps({'done': True, 'full_response': full_response})
                     app.logger.info(f"Sending end marker: {end_data}")
@@ -525,23 +538,38 @@ def stream_tts():
     if not data or "text" not in data:
         return jsonify({"error": "No text provided"}), 400
     
+    # Check if text is empty
+    if not data["text"].strip():
+        return jsonify({"error": "Empty text provided"}), 400
+    
     voice_id = data.get("voice_id")
     if not voice_id:
         return jsonify({"error": "No voice ID provided"}), 400
     
+    # Limit text length if needed
+    max_text_length = 5000  # Adjust based on your TTS service limits
+    text = data["text"][:max_text_length]
+    
     # Convert to speech
     payload = {
-        "text": data["text"],
+        "text": text,
         "voice_id": voice_id
     }
     
-    response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
-    
-    if status_code == 200:
-        # This is binary audio data
-        return response, 200, {"Content-Type": "audio/mpeg"}
-    
-    return jsonify({"error": "Error generating speech"}), status_code
+    try:
+        app.logger.info(f"Sending TTS request for text: {text[:50]}...")
+        response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
+        
+        if status_code == 200:
+            # This is binary audio data
+            app.logger.info("TTS request successful")
+            return response, 200, {"Content-Type": "audio/mpeg"}
+        
+        app.logger.error(f"TTS request failed with status {status_code}: {response}")
+        return jsonify({"error": f"Error generating speech: {response.get('error', 'Unknown error')}"}), status_code
+    except Exception as e:
+        app.logger.error(f"Error in stream_tts: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route("/get-response-audio", methods=["POST"])
 def get_response_audio():

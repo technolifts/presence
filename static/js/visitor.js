@@ -124,21 +124,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const decoder = new TextDecoder();
                 
                 // Process the stream
+                let buffer = '';
+                
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     
-                    // Decode the chunk
-                    const chunk = decoder.decode(value);
+                    // Decode the chunk and add to buffer
+                    buffer += decoder.decode(value, { stream: true });
                     
-                    console.log("Received chunk:", chunk); // Debug log
+                    console.log("Received chunk:", buffer); // Debug log
                     
-                    // Process each event in the chunk
-                    const events = chunk.split('\n\n');
-                    for (const event of events) {
-                        if (event.startsWith('data: ')) {
+                    // Process complete events in the buffer
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
                             try {
-                                const dataStr = event.substring(6);
+                                const dataStr = line.substring(6);
                                 console.log("Data string:", dataStr); // Debug log
                                 
                                 const data = JSON.parse(dataStr);
@@ -156,11 +160,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
                                     console.log("Stream complete, full response:", fullResponse); // Debug log
-                                    // Play the audio response
-                                    playAudioResponse(fullResponse, agentId, responseMessage);
+                                    
+                                    // Only play audio if we have a response
+                                    if (fullResponse.trim()) {
+                                        // Play the audio response
+                                        playAudioResponse(fullResponse, agentId, responseMessage);
+                                    } else {
+                                        // Handle empty response
+                                        responseParagraph.textContent = "I'm sorry, I couldn't generate a response. Please try again.";
+                                    }
                                 }
                             } catch (e) {
-                                console.error('Error parsing event data:', e, 'Raw event:', event);
+                                console.error('Error parsing event data:', e, 'Raw data:', line.substring(6));
                             }
                         }
                     }
@@ -489,6 +500,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function playAudioResponse(text, agentId, messageElement) {
         try {
+            // Check if text is empty
+            if (!text || !text.trim()) {
+                console.error('Empty text provided to playAudioResponse');
+                return;
+            }
+            
+            // Add a loading indicator
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'audio-loading';
+            loadingIndicator.textContent = 'Generating audio...';
+            messageElement.appendChild(loadingIndicator);
+            
             // Request TTS for the complete response
             const response = await fetch('/stream-tts', {
                 method: 'POST',
@@ -502,20 +525,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to generate speech');
+                throw new Error(`Failed to generate speech: ${response.status} ${response.statusText}`);
             }
             
             // Get the audio blob
             const audioBlob = await response.blob();
             
-            // Create audio element
-            const audio = new Audio(URL.createObjectURL(audioBlob));
+            // Remove loading indicator
+            messageElement.removeChild(loadingIndicator);
             
-            // Add audio to the message
+            // Create audio element
             const audioElement = document.createElement('audio');
             audioElement.controls = true;
             audioElement.src = URL.createObjectURL(audioBlob);
             messageElement.appendChild(audioElement);
+            
+            // Create a separate Audio object for auto-playing
+            const audio = new Audio(URL.createObjectURL(audioBlob));
             
             // Add event listener for when audio starts playing
             audio.addEventListener('play', () => {
@@ -528,9 +554,23 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             // Play audio
-            audio.play();
+            audio.play().catch(e => {
+                console.error('Error auto-playing audio:', e);
+                // Add a play button as fallback
+                const playButton = document.createElement('button');
+                playButton.className = 'play-audio-btn';
+                playButton.textContent = 'Play Response';
+                playButton.onclick = () => audio.play();
+                messageElement.appendChild(playButton);
+            });
         } catch (error) {
             console.error('Error playing audio response:', error);
+            // Add error message to the UI
+            const errorElement = document.createElement('div');
+            errorElement.className = 'audio-error';
+            errorElement.textContent = 'Could not generate audio. Click to retry.';
+            errorElement.onclick = () => playAudioResponse(text, agentId, messageElement);
+            messageElement.appendChild(errorElement);
         }
     }
     
