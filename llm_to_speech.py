@@ -23,7 +23,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 # Set ElevenLabs API key
 if ELEVENLABS_API_KEY:
-    elevenlabs.set_api_key(ELEVENLABS_API_KEY)
+    os.environ["ELEVEN_API_KEY"] = ELEVENLABS_API_KEY
 
 
 def get_llm_response(prompt: str, model: str = "claude-3-opus-20240229") -> str:
@@ -68,7 +68,8 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
         raise ValueError("ElevenLabs API key not found. Please set ELEVENLABS_API_KEY environment variable.")
     
     # Get available voices
-    voices = elevenlabs.voices()
+    from elevenlabs.api import Voices
+    voices = Voices.from_api()
     voice_id = None
     
     # Find the voice ID by name
@@ -83,18 +84,27 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
         print(f"Voice '{voice_name}' not found. Using '{voices[0].name}' instead.")
     
     # Generate audio
-    audio = elevenlabs.generate(
+    from elevenlabs.api import Generation
+    audio = Generation.generate(
         text=text,
-        voice=voice_id,
-        model="eleven_monolingual_v1"
+        voice_id=voice_id,
+        model_id="eleven_monolingual_v1"
     )
     
     if save_path:
-        elevenlabs.save(audio, save_path)
+        with open(save_path, "wb") as f:
+            f.write(audio)
         print(f"Audio saved to {save_path}")
     else:
-        # Play audio
-        elevenlabs.play(audio)
+        # Play audio using sounddevice
+        import io
+        import sounddevice as sd
+        import soundfile as sf
+        
+        audio_data = io.BytesIO(audio)
+        data, samplerate = sf.read(audio_data)
+        sd.play(data, samplerate)
+        sd.wait()
 
 
 def main():
