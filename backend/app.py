@@ -12,8 +12,10 @@ import json
 import datetime
 import glob
 import tomli
+import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response, stream_with_context
 from dotenv import load_dotenv
+from debug_utils import log_anthropic_response
 
 # Load environment variables
 load_dotenv()
@@ -243,15 +245,20 @@ def chat():
     # Generate response using Anthropic Claude
     try:
         import anthropic
-        
+            
         # Get API key from environment
         anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         if not anthropic_api_key:
             app.logger.error("ANTHROPIC_API_KEY not found in environment")
             return jsonify({"error": "API key not configured"}), 500
-        
+            
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=anthropic_api_key)
+            
+        # Log the API key (first 4 and last 4 characters only, for security)
+        if anthropic_api_key:
+            masked_key = anthropic_api_key[:4] + "..." + anthropic_api_key[-4:] if len(anthropic_api_key) > 8 else "***"
+            app.logger.info(f"Using Anthropic API key: {masked_key}")
         
         # Create system prompt using profile information and prompt config
         chat_prompts = PROMPTS.get("chat", {})
@@ -295,6 +302,9 @@ def chat():
                 nonlocal conversation_history
                 full_response = ""
                 
+                # Log the request
+                app.logger.info(f"Sending streaming request to Anthropic API with message: {message[:50]}...")
+                
                 # Create a streaming response
                 with client.messages.stream(
                     model="claude-3-7-sonnet-20250219",
@@ -305,6 +315,8 @@ def chat():
                         {"role": "user", "content": message}
                     ]
                 ) as stream:
+                    # Log the stream creation
+                    app.logger.info("Stream created successfully")
                     # Yield each chunk as it arrives
                     for chunk in stream:
                         if chunk.type == "content_block_delta" and chunk.delta.type == "text":
@@ -332,15 +344,23 @@ def chat():
             return Response(stream_with_context(generate()), mimetype='text/event-stream')
         
         # Non-streaming response (original behavior)
-        response = client.messages.create(
-            model="claude-3-7-sonnet-20250219",
-            system=system_prompt,
-            max_tokens=1000,
-            messages=[
-                *conversation_history,
-                {"role": "user", "content": message}
-            ]
-        )
+        app.logger.info(f"Sending non-streaming request to Anthropic API with message: {message[:50]}...")
+        try:
+            response = client.messages.create(
+                model="claude-3-7-sonnet-20250219",
+                system=system_prompt,
+                max_tokens=1000,
+                messages=[
+                    *conversation_history,
+                    {"role": "user", "content": message}
+                ]
+            )
+            # Log the successful response
+            log_anthropic_response(message, response)
+        except Exception as e:
+            app.logger.error(f"Error from Anthropic API: {str(e)}")
+            log_anthropic_response(message, None, error=e)
+            raise
         
         # Extract the response text
         response_text = response.content[0].text
@@ -359,19 +379,11 @@ def chat():
         # Store the response text in the session for retrieval
         session["last_response_text"] = response_text
         
-        # Convert to speech
-        payload = {
+        # Return the text response first so the UI can display it
+        return jsonify({
             "text": response_text,
             "voice_id": agent_id
-        }
-        
-        response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
-        
-        if status_code == 200:
-            # This is binary audio data
-            return response, 200, {"Content-Type": "audio/mpeg"}
-        
-        return jsonify({"error": "Error generating speech"}), status_code
+        })
     except Exception as e:
         app.logger.error(f"Error in chat: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -517,6 +529,28 @@ def stream_tts():
     payload = {
         "text": data["text"],
         "voice_id": voice_id
+    }
+    
+    response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
+    
+    if status_code == 200:
+        # This is binary audio data
+        return response, 200, {"Content-Type": "audio/mpeg"}
+    
+    return jsonify({"error": "Error generating speech"}), status_code
+
+@app.route("/get-response-audio", methods=["POST"])
+def get_response_audio():
+    """Get audio for a text response"""
+    data = request.json
+    
+    if not data or "text" not in data or "voice_id" not in data:
+        return jsonify({"error": "Missing required parameters"}), 400
+    
+    # Convert to speech
+    payload = {
+        "text": data["text"],
+        "voice_id": data["voice_id"]
     }
     
     response, status_code = api_request("/api/tts", method="POST", data=json.dumps(payload))
