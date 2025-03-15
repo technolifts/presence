@@ -396,6 +396,12 @@ nav a.active {
     background-color: #ffebee;
     color: #c62828;
     border-radius: 8px;
+    border-left: 4px solid #e74c3c;
+}
+
+.error-message {
+    color: #e74c3c;
+    font-weight: bold;
 }
 
 .message.typing {
