@@ -68,6 +68,20 @@
     font-style: italic;
 }
 
+.pending-notice {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.document-item.pending {
+    background-color: #f8f9fa;
+    border-left: 3px solid #ffc107;
+}
+
 #documentStatus {
     margin: 1rem 0;
 }

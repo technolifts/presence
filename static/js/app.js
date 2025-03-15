@@ -167,6 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Store voice ID for testing
                     window.lastVoiceId = data.voice_id;
                     
+                    // Upload any pending documents
+                    if (window.pendingDocuments && window.pendingDocuments.length > 0) {
+                        uploadPendingDocuments(data.voice_id);
+                    }
+                    
                     // Trigger event for agent creation
                     document.dispatchEvent(new CustomEvent('agentCreated', {
                         detail: {
@@ -259,6 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const documentStatus = document.getElementById('documentStatus');
     const documentsContainer = document.getElementById('documentsContainer');
     
+    // Store uploaded documents before agent creation
+    window.pendingDocuments = [];
+    
     if (documentUploadForm) {
         documentUploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -269,8 +277,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const voiceId = window.lastVoiceId;
+            
+            // If no agent ID yet, store the document temporarily
             if (!voiceId) {
-                alert('No agent ID found. Please create a voice clone first.');
+                const file = documentFile.files[0];
+                // Store file info for later upload
+                window.pendingDocuments.push(file);
+                
+                // Show in the documents list
+                displayPendingDocuments();
+                
+                // Clear file input
+                documentFile.value = '';
+                
                 return;
             }
             
@@ -334,11 +353,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Display pending documents before agent creation
+    function displayPendingDocuments() {
+        if (!documentsContainer) return;
+        
+        if (window.pendingDocuments.length === 0) {
+            documentsContainer.innerHTML = '<p class="no-documents">No documents uploaded yet.</p>';
+            return;
+        }
+        
+        let html = '<ul class="documents-list"><li class="pending-notice">Documents will be processed after agent creation</li>';
+        
+        window.pendingDocuments.forEach((doc, index) => {
+            // Format file size
+            const fileSize = formatFileSize(doc.size);
+            
+            html += `
+                <li class="document-item pending">
+                    <div class="document-info">
+                        <span class="document-name">${doc.name}</span>
+                        <span class="document-meta">${fileSize} • Pending</span>
+                    </div>
+                    <button class="btn delete-btn" data-index="${index}">Remove</button>
+                </li>
+            `;
+        });
+        
+        html += '</ul>';
+        documentsContainer.innerHTML = html;
+        
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-btn[data-index]').forEach(button => {
+            button.addEventListener('click', () => {
+                const index = parseInt(button.dataset.index);
+                window.pendingDocuments.splice(index, 1);
+                displayPendingDocuments();
+            });
+        });
+    }
+    
     // Display documents in the UI
     function displayDocuments(documents, agentId) {
         if (!documentsContainer) return;
         
-        if (documents.length === 0) {
+        if (documents.length === 0 && (!window.pendingDocuments || window.pendingDocuments.length === 0)) {
             documentsContainer.innerHTML = '<p class="no-documents">No documents uploaded yet.</p>';
             return;
         }
@@ -410,6 +468,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 copyLinkButton.textContent = 'Copy';
             }, 2000);
         });
+    }
+    
+    // Upload pending documents after agent creation
+    async function uploadPendingDocuments(agentId) {
+        if (!window.pendingDocuments || window.pendingDocuments.length === 0) return;
+        
+        const totalDocs = window.pendingDocuments.length;
+        let uploadedCount = 0;
+        let failedCount = 0;
+        
+        // Show status
+        documentStatus.style.display = 'block';
+        documentStatus.innerHTML = `<div class="loader"></div><p>Uploading ${totalDocs} document(s)...</p>`;
+        
+        // Process each document
+        for (const file of window.pendingDocuments) {
+            try {
+                // Create form data for API request
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('agent_id', agentId);
+                
+                // Send request to upload document
+                const response = await fetch('/upload-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    uploadedCount++;
+                } else {
+                    failedCount++;
+                    console.error(`Failed to upload document: ${file.name}`);
+                }
+            } catch (error) {
+                failedCount++;
+                console.error(`Error uploading document: ${file.name}`, error);
+            }
+        }
+        
+        // Clear pending documents
+        window.pendingDocuments = [];
+        
+        // Update status
+        if (failedCount > 0) {
+            documentStatus.innerHTML = `<p>Uploaded ${uploadedCount} document(s). ${failedCount} failed.</p>`;
+            setTimeout(() => {
+                documentStatus.style.display = 'none';
+            }, 3000);
+        } else {
+            documentStatus.innerHTML = `<p>Successfully uploaded ${uploadedCount} document(s)!</p>`;
+            setTimeout(() => {
+                documentStatus.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Refresh documents list
+        loadDocuments(agentId);
     }
     
     // Load documents when agent is created
