@@ -192,9 +192,19 @@ async def text_to_speech(
             voice_name=request.voice_name
         )
         
+        # Ensure audio is bytes, not a generator
+        if not isinstance(audio, bytes):
+            # If it's a generator or other iterable, convert to bytes
+            if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
+                audio_bytes = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
+            else:
+                raise TypeError(f"Unexpected audio type: {type(audio)}")
+        else:
+            audio_bytes = audio
+        
         # Return audio as a streaming response
         return StreamingResponse(
-            BytesIO(audio),
+            BytesIO(audio_bytes),
             media_type="audio/mpeg",
             headers={"Content-Disposition": "attachment; filename=speech.mp3"}
         )

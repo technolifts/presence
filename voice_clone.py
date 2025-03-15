@@ -301,6 +301,14 @@ class VoiceProcessor:
             output_format="mp3_44100_128"
         )
         
+        # Ensure we have bytes
+        if not isinstance(audio, bytes):
+            # If it's a generator or other iterable, convert to bytes
+            if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
+                audio = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
+            else:
+                raise TypeError(f"Unexpected audio type: {type(audio)}")
+        
         if save_path:
             with open(save_path, "wb") as f:
                 f.write(audio)
