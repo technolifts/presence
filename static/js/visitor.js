@@ -94,7 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContainer.appendChild(typingIndicator);
         
         try {
-            // Send a greeting request to the server
+            // Create a message element for the streaming response
+            const responseMessage = document.createElement('div');
+            responseMessage.className = 'message agent';
+            responseMessage.innerHTML = '<p></p>';
+            
+            // Start the stream
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: {
@@ -102,19 +107,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     message: "Please introduce yourself briefly",
-                    agent_id: agentId
+                    agent_id: agentId,
+                    streaming: true
                 })
             });
             
-            // Remove typing indicator
-            messageContainer.removeChild(typingIndicator);
-            
-            if (response.ok) {
+            if (response.ok && response.headers.get('Content-Type').includes('text/event-stream')) {
+                // Replace typing indicator with the actual message element
+                messageContainer.replaceChild(responseMessage, typingIndicator);
+                
+                const responseParagraph = responseMessage.querySelector('p');
+                let fullResponse = '';
+                
+                // Create a reader for the stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                // Process the stream
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    // Decode the chunk
+                    const chunk = decoder.decode(value);
+                    
+                    // Process each event in the chunk
+                    const events = chunk.split('\n\n');
+                    for (const event of events) {
+                        if (event.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(event.substring(6));
+                                
+                                // If this is a text chunk, add it to the response
+                                if (data.chunk) {
+                                    fullResponse += data.chunk;
+                                    responseParagraph.textContent = fullResponse;
+                                    
+                                    // Scroll to bottom
+                                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                                }
+                                
+                                // If this is the end of the stream, play the audio
+                                if (data.done) {
+                                    // Play the audio response
+                                    playAudioResponse(fullResponse, agentId, responseMessage);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing event data:', e);
+                            }
+                        }
+                    }
+                }
+            } else if (response.ok) {
+                // Fallback to non-streaming response (audio blob)
+                messageContainer.removeChild(typingIndicator);
+                
                 const audioBlob = await response.blob();
                 
                 // Create a placeholder for the agent's response
-                const responseMessage = document.createElement('div');
-                responseMessage.className = 'message agent';
                 responseMessage.innerHTML = '<p>Response loading...</p>';
                 messageContainer.appendChild(responseMessage);
                 
@@ -151,6 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error getting response text:', error);
                 }
             } else {
+                // Remove typing indicator
+                messageContainer.removeChild(typingIndicator);
+                
                 // If there's an error, just show a default greeting
                 const defaultGreeting = document.createElement('div');
                 defaultGreeting.className = 'message agent';
@@ -159,6 +212,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error sending initial greeting:', error);
+            
+            // Remove typing indicator if it still exists
+            const typingIndicators = messageContainer.querySelectorAll('.typing');
+            typingIndicators.forEach(indicator => messageContainer.removeChild(indicator));
+            
             // Show default greeting on error
             const defaultGreeting = document.createElement('div');
             defaultGreeting.className = 'message agent';
@@ -190,7 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContainer.scrollTop = messageContainer.scrollHeight;
         
         try {
-            // Send message to the server
+            // Create a message element for the streaming response
+            const responseMessage = document.createElement('div');
+            responseMessage.className = 'message agent';
+            responseMessage.innerHTML = '<p></p>';
+            
+            // Start the stream
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: {
@@ -198,19 +261,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     message: message,
-                    agent_id: selectedAgentId
+                    agent_id: selectedAgentId,
+                    streaming: true
                 })
             });
             
-            // Remove typing indicator
-            messageContainer.removeChild(typingIndicator);
-            
-            if (response.ok) {
+            if (response.ok && response.headers.get('Content-Type').includes('text/event-stream')) {
+                // Replace typing indicator with the actual message element
+                messageContainer.replaceChild(responseMessage, typingIndicator);
+                
+                const responseParagraph = responseMessage.querySelector('p');
+                let fullResponse = '';
+                
+                // Create a reader for the stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                // Process the stream
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    // Decode the chunk
+                    const chunk = decoder.decode(value);
+                    
+                    // Process each event in the chunk
+                    const events = chunk.split('\n\n');
+                    for (const event of events) {
+                        if (event.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(event.substring(6));
+                                
+                                // If this is a text chunk, add it to the response
+                                if (data.chunk) {
+                                    fullResponse += data.chunk;
+                                    responseParagraph.textContent = fullResponse;
+                                    
+                                    // Scroll to bottom
+                                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                                }
+                                
+                                // If this is the end of the stream, play the audio
+                                if (data.done) {
+                                    // Play the audio response
+                                    playAudioResponse(fullResponse, selectedAgentId, responseMessage);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing event data:', e);
+                            }
+                        }
+                    }
+                }
+            } else if (response.ok) {
+                // Fallback to non-streaming response (audio blob)
+                messageContainer.removeChild(typingIndicator);
+                
                 const audioBlob = await response.blob();
                 
                 // Create a placeholder for the agent's response
-                const responseMessage = document.createElement('div');
-                responseMessage.className = 'message agent';
                 responseMessage.innerHTML = '<p>Response loading...</p>';
                 messageContainer.appendChild(responseMessage);
                 
@@ -247,6 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error getting response text:', error);
                 }
             } else {
+                // Remove typing indicator
+                messageContainer.removeChild(typingIndicator);
+                
                 let errorMessage = 'Something went wrong';
                 try {
                     const errorData = await response.json();
@@ -259,6 +370,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error sending message:', error);
+            
+            // Remove typing indicator if it still exists
+            const typingIndicators = messageContainer.querySelectorAll('.typing');
+            typingIndicators.forEach(indicator => messageContainer.removeChild(indicator));
+            
             addMessage('Error: Could not connect to the server', 'error');
         } finally {
             // Re-enable send button
@@ -277,6 +393,53 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Scroll to bottom
         messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+    
+    async function playAudioResponse(text, agentId, messageElement) {
+        try {
+            // Request TTS for the complete response
+            const response = await fetch('/stream-tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: text,
+                    voice_id: agentId
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to generate speech');
+            }
+            
+            // Get the audio blob
+            const audioBlob = await response.blob();
+            
+            // Create audio element
+            const audio = new Audio(URL.createObjectURL(audioBlob));
+            
+            // Add audio to the message
+            const audioElement = document.createElement('audio');
+            audioElement.controls = true;
+            audioElement.src = URL.createObjectURL(audioBlob);
+            messageElement.appendChild(audioElement);
+            
+            // Add event listener for when audio starts playing
+            audio.addEventListener('play', () => {
+                messageElement.classList.add('playing');
+            });
+            
+            // Add event listener for when audio ends
+            audio.addEventListener('ended', () => {
+                messageElement.classList.remove('playing');
+            });
+            
+            // Play audio
+            audio.play();
+        } catch (error) {
+            console.error('Error playing audio response:', error);
+        }
     }
     
     function toggleVoiceInput() {
