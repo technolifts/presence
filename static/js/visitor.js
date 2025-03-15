@@ -183,6 +183,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                             console.log("Received fallback error message, not playing audio");
                                             responseParagraph.textContent = fullResponse;
                                         } else {
+                                            // Stop any currently playing audio before starting a new one
+                                            if (currentlyPlayingAudio) {
+                                                currentlyPlayingAudio.pause();
+                                                currentlyPlayingAudio.currentTime = 0;
+                                                currentlyPlayingAudio = null;
+                                            }
                                             // Play the audio response for normal responses
                                             playAudioResponse(fullResponse, agentId, responseMessage);
                                         }
@@ -241,26 +247,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         messageContainer.appendChild(responseMessage);
                         
                         // Create audio element
-                        const audio = new Audio(URL.createObjectURL(audioBlob));
-                        
-                        // Add audio to the message
                         const audioElement = document.createElement('audio');
                         audioElement.controls = true;
-                        audioElement.src = URL.createObjectURL(audioBlob);
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioElement.src = audioUrl;
                         responseMessage.appendChild(audioElement);
                         
-                        // Add event listener for when audio starts playing
-                        audio.addEventListener('play', () => {
+                        // Add event listeners for the audio element
+                        audioElement.addEventListener('play', () => {
+                            // Stop any currently playing audio
+                            if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                                currentlyPlayingAudio.pause();
+                                currentlyPlayingAudio.currentTime = 0;
+                            }
+                            // Update the currently playing audio reference
+                            currentlyPlayingAudio = audioElement;
                             responseMessage.classList.add('playing');
                         });
                         
-                        // Add event listener for when audio ends
-                        audio.addEventListener('ended', () => {
+                        audioElement.addEventListener('ended', () => {
                             responseMessage.classList.remove('playing');
+                            if (currentlyPlayingAudio === audioElement) {
+                                currentlyPlayingAudio = null;
+                            }
                         });
                         
                         // Play audio
-                        audio.play();
+                        audioElement.play().catch(e => {
+                            console.error('Error auto-playing audio:', e);
+                        });
                         
                         // Get the text transcript (if available)
                         try {
@@ -414,6 +429,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                             console.log("Received fallback error message, not playing audio");
                                             responseParagraph.textContent = fullResponse;
                                         } else {
+                                            // Stop any currently playing audio before starting a new one
+                                            if (currentlyPlayingAudio) {
+                                                currentlyPlayingAudio.pause();
+                                                currentlyPlayingAudio.currentTime = 0;
+                                                currentlyPlayingAudio = null;
+                                            }
                                             // Play the audio response
                                             playAudioResponse(fullResponse, selectedAgentId, responseMessage);
                                         }
@@ -472,26 +493,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         messageContainer.appendChild(responseMessage);
                         
                         // Create audio element
-                        const audio = new Audio(URL.createObjectURL(audioBlob));
-                        
-                        // Add audio to the message
                         const audioElement = document.createElement('audio');
                         audioElement.controls = true;
-                        audioElement.src = URL.createObjectURL(audioBlob);
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioElement.src = audioUrl;
                         responseMessage.appendChild(audioElement);
                         
-                        // Add event listener for when audio starts playing
-                        audio.addEventListener('play', () => {
+                        // Add event listeners for the audio element
+                        audioElement.addEventListener('play', () => {
+                            // Stop any currently playing audio
+                            if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                                currentlyPlayingAudio.pause();
+                                currentlyPlayingAudio.currentTime = 0;
+                            }
+                            // Update the currently playing audio reference
+                            currentlyPlayingAudio = audioElement;
                             responseMessage.classList.add('playing');
                         });
                         
-                        // Add event listener for when audio ends
-                        audio.addEventListener('ended', () => {
+                        audioElement.addEventListener('ended', () => {
                             responseMessage.classList.remove('playing');
+                            if (currentlyPlayingAudio === audioElement) {
+                                currentlyPlayingAudio = null;
+                            }
                         });
                         
                         // Play audio
-                        audio.play();
+                        audioElement.play().catch(e => {
+                            console.error('Error auto-playing audio:', e);
+                        });
                         
                         // Get the text transcript (if available)
                         try {
@@ -550,6 +580,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
     
+    // Global variable to track currently playing audio
+    let currentlyPlayingAudio = null;
+    
     async function playAudioResponse(text, agentId, messageElement) {
         try {
             // Check if text is empty or is the fallback error message
@@ -592,33 +625,42 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove loading indicator
             messageElement.removeChild(loadingIndicator);
             
-            // Create audio element
+            // Create audio element with controls
             const audioElement = document.createElement('audio');
             audioElement.controls = true;
-            audioElement.src = URL.createObjectURL(audioBlob);
-            messageElement.appendChild(audioElement);
+            const audioUrl = URL.createObjectURL(audioBlob);
+            audioElement.src = audioUrl;
             
-            // Create a separate Audio object for auto-playing
-            const audio = new Audio(URL.createObjectURL(audioBlob));
-            
-            // Add event listener for when audio starts playing
-            audio.addEventListener('play', () => {
+            // Add event listeners for the audio element
+            audioElement.addEventListener('play', () => {
+                // Stop any currently playing audio
+                if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                    currentlyPlayingAudio.pause();
+                    currentlyPlayingAudio.currentTime = 0;
+                }
+                // Update the currently playing audio reference
+                currentlyPlayingAudio = audioElement;
                 messageElement.classList.add('playing');
             });
             
-            // Add event listener for when audio ends
-            audio.addEventListener('ended', () => {
+            audioElement.addEventListener('ended', () => {
                 messageElement.classList.remove('playing');
+                if (currentlyPlayingAudio === audioElement) {
+                    currentlyPlayingAudio = null;
+                }
             });
             
-            // Play audio
-            audio.play().catch(e => {
+            // Add the audio element to the message
+            messageElement.appendChild(audioElement);
+            
+            // Auto-play the audio (using the same element, not a separate Audio object)
+            audioElement.play().catch(e => {
                 console.error('Error auto-playing audio:', e);
                 // Add a play button as fallback
                 const playButton = document.createElement('button');
                 playButton.className = 'play-audio-btn';
                 playButton.textContent = 'Play Response';
-                playButton.onclick = () => audio.play();
+                playButton.onclick = () => audioElement.play();
                 messageElement.appendChild(playButton);
             });
         } catch (error) {
