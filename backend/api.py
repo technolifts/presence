@@ -81,7 +81,7 @@ class TTSRequest(BaseModel):
 @app.post("/api/transcribe", response_model=TextResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    api_key: str = Depends(verify_api_key) = None
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Transcribe speech from an audio file to text.
@@ -116,7 +116,7 @@ async def clone_voice(
     name: str = Form(...),
     description: Optional[str] = Form(None),
     remove_noise: bool = Form(False),
-    api_key: str = Depends(verify_api_key) = None
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Clone a voice from an audio file.
@@ -151,7 +151,7 @@ async def clone_voice(
             pass
 
 @app.get("/api/voices", response_model=VoiceListResponse)
-async def list_voices(api_key: str = Depends(verify_api_key) = None):
+async def list_voices(api_key: str = Depends(verify_api_key)):
     """
     List all available voices.
     """
@@ -175,7 +175,7 @@ async def list_voices(api_key: str = Depends(verify_api_key) = None):
 @app.post("/api/tts")
 async def text_to_speech(
     request: TTSRequest,
-    api_key: str = Depends(verify_api_key) = None
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Convert text to speech using a specified voice.
@@ -220,7 +220,7 @@ async def text_to_speech(
 async def download_tts(
     request: TTSRequest,
     filename: Optional[str] = None,
-    api_key: str = Depends(verify_api_key) = None
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Convert text to speech and provide a downloadable MP3 file.
@@ -278,7 +278,7 @@ async def download_tts(
 async def optimize_audio(
     file: UploadFile = File(...),
     duration: int = Form(90),
-    api_key: str = Depends(verify_api_key) = None
+    api_key: str = Depends(verify_api_key)
 ):
     """
     Optimize an audio file for voice cloning.
