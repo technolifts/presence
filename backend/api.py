@@ -10,7 +10,7 @@ import os
 import tempfile
 from typing import List, Optional
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, Header, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -20,6 +20,7 @@ from io import BytesIO
 # Import the VoiceProcessor class and DocumentParser
 from voice_clone import VoiceProcessor
 from document_parser import DocumentParser
+from websocket_tts import register_websocket_routes
 
 # Load environment variables
 load_dotenv()
@@ -59,6 +60,8 @@ async def startup_event():
     global voice_processor, document_parser
     try:
         voice_processor = VoiceProcessor()
+        # Register WebSocket routes
+        register_websocket_routes(app, voice_processor)
     except ValueError as e:
         print(f"Error initializing voice processor: {e}")
         # Continue without voice processor, will handle in endpoints
@@ -84,6 +87,7 @@ class TTSRequest(BaseModel):
     text: str
     voice_id: Optional[str] = "v8qylBrMZzkqn8nZJUZX"  # Default voice ID: Testing
     voice_name: Optional[str] = "Testing"  # Default voice name
+    stream: Optional[bool] = False  # Whether to stream the audio
 
 class DocumentResponse(BaseModel):
     text: str
@@ -190,6 +194,9 @@ async def text_to_speech(
 ):
     """
     Convert text to speech using a specified voice.
+    
+    If request.stream is True, the audio will be streamed as it's generated.
+    Otherwise, the entire audio will be generated before sending.
     """
     if not voice_processor:
         raise HTTPException(status_code=500, detail="Voice processor not initialized")
@@ -201,26 +208,83 @@ async def text_to_speech(
         request.voice_name = "Testing"
     
     try:
-        # Generate speech
-        audio = voice_processor.text_to_speech(
+        if request.stream:
+            # Generate speech with streaming enabled
+            audio_stream = voice_processor.text_to_speech(
+                text=request.text,
+                voice_id=request.voice_id,
+                voice_name=request.voice_name,
+                stream=True
+            )
+            
+            # Return audio as a streaming response
+            return StreamingResponse(
+                audio_stream,
+                media_type="audio/mpeg",
+                headers={"Content-Disposition": "attachment; filename=speech.mp3"}
+            )
+        else:
+            # Generate speech without streaming
+            audio = voice_processor.text_to_speech(
+                text=request.text,
+                voice_id=request.voice_id,
+                voice_name=request.voice_name,
+                stream=False
+            )
+            
+            # Ensure audio is bytes, not a generator
+            if not isinstance(audio, bytes):
+                # If it's a generator or other iterable, convert to bytes
+                if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
+                    audio_bytes = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
+                else:
+                    raise TypeError(f"Unexpected audio type: {type(audio)}")
+            else:
+                audio_bytes = audio
+            
+            # Return audio as a streaming response
+            return StreamingResponse(
+                BytesIO(audio_bytes),
+                media_type="audio/mpeg",
+                headers={"Content-Disposition": "attachment; filename=speech.mp3"}
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
+
+@app.post("/api/tts/stream")
+async def stream_tts(
+    request: TTSRequest
+):
+    """
+    Stream text to speech using a specified voice.
+    
+    Args:
+        request: The TTS request containing text and voice information
+    
+    Returns:
+        A streaming response with the audio data
+    """
+    if not voice_processor:
+        raise HTTPException(status_code=500, detail="Voice processor not initialized")
+    
+    # Default values are now set in the model, so this check is just for clarity
+    if not request.voice_id and not request.voice_name:
+        # Use default values from the model
+        request.voice_id = "v8qylBrMZzkqn8nZJUZX"  # Default voice ID: Testing
+        request.voice_name = "Testing"
+    
+    try:
+        # Generate speech with streaming enabled
+        audio_stream = voice_processor.text_to_speech(
             text=request.text,
             voice_id=request.voice_id,
-            voice_name=request.voice_name
+            voice_name=request.voice_name,
+            stream=True
         )
-        
-        # Ensure audio is bytes, not a generator
-        if not isinstance(audio, bytes):
-            # If it's a generator or other iterable, convert to bytes
-            if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
-                audio_bytes = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
-            else:
-                raise TypeError(f"Unexpected audio type: {type(audio)}")
-        else:
-            audio_bytes = audio
         
         # Return audio as a streaming response
         return StreamingResponse(
-            BytesIO(audio_bytes),
+            audio_stream,
             media_type="audio/mpeg",
             headers={"Content-Disposition": "attachment; filename=speech.mp3"}
         )

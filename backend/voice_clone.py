@@ -21,7 +21,7 @@ import argparse
 import tempfile
 import subprocess
 import requests
-from typing import Optional, Union, BinaryIO
+from typing import Optional, Union, BinaryIO, Generator
 from dotenv import load_dotenv
 import openai
 from elevenlabs.client import ElevenLabs
@@ -259,7 +259,7 @@ class VoiceProcessor:
                 return None
     
     def text_to_speech(self, text: str, voice_name: str = None, voice_id: str = None, 
-                       save_path: Optional[str] = None) -> Optional[bytes]:
+                       save_path: Optional[str] = None, stream: bool = False) -> Optional[Union[bytes, Generator]]:
         """
         Convert text to speech using ElevenLabs API.
         
@@ -268,9 +268,10 @@ class VoiceProcessor:
             voice_name: The name of the voice to use (either voice_name or voice_id must be provided)
             voice_id: The ID of the voice to use (either voice_name or voice_id must be provided)
             save_path: Optional path to save the audio file
+            stream: Whether to stream the audio (returns a generator instead of bytes)
             
         Returns:
-            Audio data as bytes if save_path is None, otherwise None
+            Audio data as bytes, a generator if stream=True, or None if save_path is provided
         """
         if not voice_id:
             if voice_name:
@@ -294,28 +295,39 @@ class VoiceProcessor:
                 raise ValueError("Either voice_name or voice_id must be provided")
         
         # Generate audio
-        audio = self.elevenlabs_client.text_to_speech.convert(
-            text=text,
-            voice_id=voice_id,
-            model_id="eleven_monolingual_v1",
-            output_format="mp3_44100_128"
-        )
-        
-        # Ensure we have bytes
-        if not isinstance(audio, bytes):
-            # If it's a generator or other iterable, convert to bytes
-            if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
-                audio = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
-            else:
-                raise TypeError(f"Unexpected audio type: {type(audio)}")
-        
-        if save_path:
-            with open(save_path, "wb") as f:
-                f.write(audio)
-            print(f"Audio saved to {save_path}")
-            return None
+        if stream:
+            # Return the generator directly for streaming
+            return self.elevenlabs_client.text_to_speech.convert(
+                text=text,
+                voice_id=voice_id,
+                model_id="eleven_monolingual_v1",
+                output_format="mp3_44100_128",
+                stream=True
+            )
         else:
-            return audio
+            # Generate audio as before for non-streaming
+            audio = self.elevenlabs_client.text_to_speech.convert(
+                text=text,
+                voice_id=voice_id,
+                model_id="eleven_monolingual_v1",
+                output_format="mp3_44100_128"
+            )
+            
+            # Ensure we have bytes
+            if not isinstance(audio, bytes):
+                # If it's a generator or other iterable, convert to bytes
+                if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
+                    audio = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
+                else:
+                    raise TypeError(f"Unexpected audio type: {type(audio)}")
+            
+            if save_path:
+                with open(save_path, "wb") as f:
+                    f.write(audio)
+                print(f"Audio saved to {save_path}")
+                return None
+            else:
+                return audio
     
     def play_audio(self, audio_data: bytes) -> None:
         """
