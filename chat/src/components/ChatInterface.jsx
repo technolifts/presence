@@ -10,28 +10,85 @@ const ChatInterface = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [speakEnabled, setSpeakEnabled] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [voiceId, setVoiceId] = useState('v8qylBrMZzkqn8nZJUZX'); // Default voice ID
   const messagesEndRef = useRef(null);
-  const speechSynthesisRef = useRef(null);
+  const audioPlayerRef = useRef(new Audio());
+
+  // Extract query parameters when component mounts
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const voiceIdParam = queryParams.get('voice_id');
+    
+    if (voiceIdParam) {
+      setVoiceId(voiceIdParam);
+    }
+  }, []);
+
+  // Function to call external TTS service
+  const fetchTTS = async (text) => {
+    try {
+      setIsPlaying(true);
+
+      // Replace this with your actual TTS API endpoint
+      const response = await fetch('https://backpresence.novas.life/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': 'default-api-key'
+          // Add any required API keys or authorization headers
+          // 'Authorization': 'Bearer YOUR_API_KEY'
+        },
+        body: JSON.stringify({
+          text,
+          "voice_id": voiceId,
+          "voice_name": "Testing"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('TTS service failed');
+      }
+
+      // Assuming the API returns the audio file directly
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play the audio
+      audioPlayerRef.current.src = audioUrl;
+      audioPlayerRef.current.play();
+
+      // Clean up the URL when done playing
+      audioPlayerRef.current.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setIsPlaying(false);
+      };
+
+    } catch (error) {
+      console.error('Error fetching TTS:', error);
+      setIsPlaying(false);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() === '') return;
-    
+
     // Add user message
     const newMessages = [...messages, { role: 'user', content: input }];
     setMessages(newMessages);
     setInput('');
-    
+
     // Simulate AI response
     setIsLoading(true);
     setTimeout(() => {
       const aiResponse = `I received your message: "${input}". This is a simulated response from the AI assistant.`;
-      setMessages([...newMessages, { 
-        role: 'assistant', 
+      setMessages([...newMessages, {
+        role: 'assistant',
         content: aiResponse
       }]);
       setIsLoading(false);
-      
+
       // Speak the AI response if enabled
       if (speakEnabled) {
         speak(aiResponse);
@@ -41,21 +98,23 @@ const ChatInterface = () => {
 
   // Function to handle speech synthesis
   const speak = (text) => {
-    // Cancel any ongoing speech
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    // Stop any currently playing audio
+    if (audioPlayerRef.current.playing) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
     }
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    speechSynthesisRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+
+    // Call the external TTS service
+    fetchTTS(text);
   };
 
   // Toggle speech functionality
   const toggleSpeech = () => {
-    if (speakEnabled) {
+    if (speakEnabled && isPlaying) {
       // If turning off, stop any ongoing speech
-      window.speechSynthesis.cancel();
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+      setIsPlaying(false);
     }
     setSpeakEnabled(!speakEnabled);
   };
@@ -65,11 +124,12 @@ const ChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Clean up speech synthesis on unmount
+  // Clean up audio player on unmount
   useEffect(() => {
     return () => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current.src = '';
       }
     };
   }, []);
@@ -86,11 +146,11 @@ const ChatInterface = () => {
             </div>
             <span className="logo-text">ChatAI</span>
           </div>
-          
+
           {/* Right Logo and Speech Toggle */}
           <div className="header-right">
-            <button 
-              className={`speech-toggle ${speakEnabled ? 'enabled' : 'disabled'}`}
+            <button
+              className={`speech-toggle ${speakEnabled ? 'enabled' : 'disabled'} ${isPlaying ? 'playing' : ''}`}
               onClick={toggleSpeech}
               title={speakEnabled ? "Turn off speech" : "Turn on speech"}
             >
@@ -102,12 +162,12 @@ const ChatInterface = () => {
           </div>
         </div>
       </header>
-      
+
       {/* Chat Area */}
       <div className="message-area">
         {messages.map((message, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className={`message-container ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
           >
             <div className={`message-bubble ${message.role === 'user' ? 'user-bubble' : 'assistant-bubble'}`}>
@@ -125,7 +185,7 @@ const ChatInterface = () => {
         )}
         <div ref={messagesEndRef} />
       </div>
-      
+
       {/* Input Area */}
       <div className="input-area">
         <form onSubmit={handleSubmit} className="input-form">
@@ -136,8 +196,8 @@ const ChatInterface = () => {
             placeholder="Type your message here..."
             className="message-input"
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="send-button"
             disabled={input.trim() === '' || isLoading}
           >
