@@ -621,6 +621,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const audioUrl = URL.createObjectURL(audioBlob);
             audioElement.src = audioUrl;
             
+            // Add visual indicator for the audio player
+            const audioContainer = document.createElement('div');
+            audioContainer.className = 'audio-container';
+            audioContainer.innerHTML = '<div class="audio-indicator"></div>';
+            audioContainer.appendChild(audioElement);
+            
             // Handle audio playback
             audioElement.addEventListener('play', () => {
                 if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
@@ -628,14 +634,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 currentlyPlayingAudio = audioElement;
                 messageElement.classList.add('playing');
+                audioContainer.classList.add('playing');
             });
             
             audioElement.addEventListener('ended', () => {
                 messageElement.classList.remove('playing');
+                audioContainer.classList.remove('playing');
+            });
+            
+            audioElement.addEventListener('pause', () => {
+                if (currentlyPlayingAudio === audioElement) {
+                    audioContainer.classList.remove('playing');
+                }
             });
             
             // Add to message
-            messageElement.appendChild(audioElement);
+            messageElement.appendChild(audioContainer);
             
             // Auto-play
             audioElement.play().catch(e => {
