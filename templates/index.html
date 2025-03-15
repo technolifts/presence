@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Voice Agent - Create Your Profile</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/document-upload.css') }}">
+    <title>Create Your AI Voice Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/document-upload.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -73,44 +73,68 @@
 
             <section class="interview-section">
                 <h2>Tell Us About Yourself</h2>
-                <p>Answer a few questions to help your AI agent represent you better.</p>
+                <p>Answer a few questions by voice to help your AI agent represent you better.</p>
                 
                 <div class="interview-container">
+                    <p class="tip">For best results, speak clearly in a quiet environment. Your voice recordings will be combined to create your AI voice.</p>
+                    
+                    <div class="sample-script">
+                        <h3>Sample Script (Optional)</h3>
+                        <p>Hello, my name is [Your Name]. I'm a [Your Profession] with expertise in [Your Areas of Expertise]. I'm passionate about [Your Interests]. In my free time, I enjoy [Your Hobbies]. I'm creating this AI voice agent to help answer questions about my work, experience, or opinions on relevant topics.</p>
+                    </div>
+                    
                     <div id="questionContainer" class="question-container">
                         <p class="question-text">Let's start with some questions to get to know you better. Ready to begin?</p>
-                        <button id="startInterviewBtn" class="btn secondary-btn">Start Interview</button>
+                        <button id="startInterviewBtn" class="btn secondary-btn">Start Voice Interview</button>
                     </div>
                     
                     <div id="responseContainer" class="response-container" style="display: none;">
-                        <textarea id="userResponse" placeholder="Type your answer here..."></textarea>
+                        <!-- Recording Controls -->
+                        <div class="recording-controls">
+                            <button type="button" id="recordButton" class="btn record-btn">
+                                <span class="record-icon"></span>Record Answer
+                            </button>
+                            
+                            <div id="visualizer-container" class="audio-visualizer">
+                                <canvas id="visualizer"></canvas>
+                                <div id="recordingTimer" class="recording-timer">00:00</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Audio Player -->
+                        <div class="audio-player" style="display: none;">
+                            <audio id="recordedAudio" controls></audio>
+                        </div>
+                        
+                        <!-- Navigation Controls -->
                         <div class="interview-controls">
-                            <button id="nextQuestionBtn" class="btn primary-btn">Next Question</button>
-                            <button id="finishInterviewBtn" class="btn secondary-btn" style="display: none;">Finish Interview</button>
+                            <button id="nextQuestionBtn" class="btn primary-btn" disabled>Next Question</button>
+                            <button id="finishInterviewBtn" class="btn secondary-btn" style="display: none;" disabled>Finish Interview</button>
                         </div>
                     </div>
                     
-                    <div id="interviewProgress" class="interview-progress">
+                    <div id="interviewProgress" class="interview-progress" style="display: none;">
                         <div class="progress-bar">
                             <div id="progressFill" class="progress-fill" style="width: 0%"></div>
                         </div>
-                        <p><span id="currentQuestionNum">0</span> of <span id="totalQuestions">10</span> questions answered</p>
+                        <p><span id="currentQuestionNum">1</span> of <span id="totalQuestions">5</span> questions answered</p>
                     </div>
                     
                     <div id="interviewSummary" class="interview-summary" style="display: none;">
                         <h3>Interview Complete!</h3>
-                        <p>Thank you for sharing information about yourself. This will help your AI agent represent you better.</p>
+                        <p>Thank you for completing the voice interview. Your recordings have been combined and will be used to create your AI agent.</p>
                         <div class="summary-container">
                             <h4>Summary of Your Responses:</h4>
                             <div id="responseSummary" class="response-summary"></div>
                         </div>
                     </div>
+                    
+                    <div class="sample-voice-option">
+                        <p>Don't want to record? Use our sample voice instead:</p>
+                        <button type="button" id="useSampleVoice" class="btn secondary-btn">Use Sample Voice Instead</button>
+                    </div>
                 </div>
             </section>
-            
-            <section class="recording-section">
-                <h2>Record Your Voice</h2>
-                <p>Record a sample of your voice to create your AI agent.</p>
-                <p class="tip">Tip: For best results, speak clearly for at least 1-2 minutes in a quiet environment. Read the sample script below or introduce yourself naturally.</p>
                 
                 <div class="sample-script">
                     <h3>Sample Script (Optional)</h3>
