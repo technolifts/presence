@@ -43,6 +43,8 @@ app.add_middleware(
 API_KEY = os.getenv("API_KEY", "default_api_key")  # Set a secure API key in .env
 
 def verify_api_key(x_api_key: str = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="API key is missing")
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
@@ -79,7 +81,7 @@ class TTSRequest(BaseModel):
 @app.post("/api/transcribe", response_model=TextResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key) = None
 ):
     """
     Transcribe speech from an audio file to text.
@@ -114,7 +116,7 @@ async def clone_voice(
     name: str = Form(...),
     description: Optional[str] = Form(None),
     remove_noise: bool = Form(False),
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key) = None
 ):
     """
     Clone a voice from an audio file.
@@ -149,7 +151,7 @@ async def clone_voice(
             pass
 
 @app.get("/api/voices", response_model=VoiceListResponse)
-async def list_voices(api_key: str = Depends(verify_api_key)):
+async def list_voices(api_key: str = Depends(verify_api_key) = None):
     """
     List all available voices.
     """
@@ -173,7 +175,7 @@ async def list_voices(api_key: str = Depends(verify_api_key)):
 @app.post("/api/tts")
 async def text_to_speech(
     request: TTSRequest,
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key) = None
 ):
     """
     Convert text to speech using a specified voice.
@@ -218,7 +220,7 @@ async def text_to_speech(
 async def download_tts(
     request: TTSRequest,
     filename: Optional[str] = None,
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key) = None
 ):
     """
     Convert text to speech and provide a downloadable MP3 file.
@@ -276,7 +278,7 @@ async def download_tts(
 async def optimize_audio(
     file: UploadFile = File(...),
     duration: int = Form(90),
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key) = None
 ):
     """
     Optimize an audio file for voice cloning.
