@@ -104,12 +104,26 @@ def convert_and_check(file_path):
                 if max_amplitude < 100:
                     print("WARNING: Audio may be silent or very quiet")
         
-        # Create a fixed MP3 from the WAV
+        # Create a fixed MP3 from the WAV with size limit for ElevenLabs (under 11MB)
         fixed_mp3 = os.path.splitext(file_path)[0] + "_fixed_from_wav.mp3"
         subprocess.run(
-            ["ffmpeg", "-y", "-i", temp_path, "-ar", "44100", "-ac", "1", "-b:a", "192k", fixed_mp3],
+            ["ffmpeg", "-y", "-i", temp_path, "-ar", "44100", "-ac", "1", "-b:a", "128k", fixed_mp3],
             capture_output=True
         )
+        
+        # Check if file is still too large (>10MB to be safe)
+        if os.path.getsize(fixed_mp3) > 10 * 1024 * 1024:
+            print("File is still too large for ElevenLabs (>10MB). Creating a shorter version...")
+            # Create a shorter version (first 5 minutes or less)
+            short_mp3 = os.path.splitext(file_path)[0] + "_short.mp3"
+            duration_seconds = min(300, len(audio) / 1000)  # 5 minutes max
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", fixed_mp3, "-t", str(duration_seconds), 
+                 "-ar", "44100", "-ac", "1", "-b:a", "96k", short_mp3],
+                capture_output=True
+            )
+            print(f"Created shorter MP3 (under 10MB): {short_mp3}")
+            return short_mp3
         
         print(f"Created fixed MP3: {fixed_mp3}")
         

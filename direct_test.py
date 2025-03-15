@@ -29,8 +29,14 @@ def test_direct_api(file_path, voice_name="Test Voice", description="Test voice 
         return
     
     # Print file info
+    file_size = os.path.getsize(file_path)
     print(f"File path: {file_path}")
-    print(f"File size: {os.path.getsize(file_path) / 1024:.2f} KB")
+    print(f"File size: {file_size / 1024:.2f} KB ({file_size / (1024 * 1024):.2f} MB)")
+    
+    # Check if file is too large
+    if file_size > 10.5 * 1024 * 1024:  # 10.5MB to be safe
+        print("Warning: File is larger than ElevenLabs' 11MB limit")
+        print("Please use a smaller file or run check_file_integrity.py with --fix to create a smaller version")
     
     # API endpoint
     url = "https://api.elevenlabs.io/v1/voices/add"
