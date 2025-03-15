@@ -166,6 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Store voice ID for testing
                     window.lastVoiceId = data.voice_id;
+                    
+                    // Trigger event for agent creation
+                    document.dispatchEvent(new CustomEvent('agentCreated', {
+                        detail: {
+                            agentId: data.voice_id,
+                            agentName: name
+                        }
+                    }));
                 } else {
                     // Show error
                     alert(`Error: ${data.error || 'Failed to clone voice'}`);
@@ -244,6 +252,154 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize
     createDirectoryStructure();
 });
+    // Document upload functionality
+    const documentUploadForm = document.getElementById('documentUploadForm');
+    const documentFile = document.getElementById('documentFile');
+    const uploadDocumentButton = document.getElementById('uploadDocumentButton');
+    const documentStatus = document.getElementById('documentStatus');
+    const documentsContainer = document.getElementById('documentsContainer');
+    
+    if (documentUploadForm) {
+        documentUploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!documentFile.files.length) {
+                alert('Please select a document to upload.');
+                return;
+            }
+            
+            const voiceId = window.lastVoiceId;
+            if (!voiceId) {
+                alert('No agent ID found. Please create a voice clone first.');
+                return;
+            }
+            
+            // Show loading state
+            uploadDocumentButton.disabled = true;
+            documentStatus.style.display = 'block';
+            
+            try {
+                // Create form data for API request
+                const formData = new FormData();
+                formData.append('document', documentFile.files[0]);
+                formData.append('agent_id', voiceId);
+                
+                // Send request to upload document
+                const response = await fetch('/upload-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Show success message
+                    alert(`Document uploaded successfully: ${documentFile.files[0].name}`);
+                    
+                    // Clear file input
+                    documentFile.value = '';
+                    
+                    // Refresh documents list
+                    loadDocuments(voiceId);
+                } else {
+                    // Show error
+                    alert(`Error: ${data.error || 'Failed to upload document'}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                // Reset UI
+                uploadDocumentButton.disabled = false;
+                documentStatus.style.display = 'none';
+            }
+        });
+    }
+    
+    // Load documents for an agent
+    async function loadDocuments(agentId) {
+        if (!agentId) return;
+        
+        try {
+            const response = await fetch(`/documents/${agentId}`);
+            const data = await response.json();
+            
+            if (response.ok && data.documents) {
+                displayDocuments(data.documents, agentId);
+            } else {
+                documentsContainer.innerHTML = '<p class="no-documents">No documents uploaded yet.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading documents:', error);
+            documentsContainer.innerHTML = '<p class="error">Error loading documents.</p>';
+        }
+    }
+    
+    // Display documents in the UI
+    function displayDocuments(documents, agentId) {
+        if (!documentsContainer) return;
+        
+        if (documents.length === 0) {
+            documentsContainer.innerHTML = '<p class="no-documents">No documents uploaded yet.</p>';
+            return;
+        }
+        
+        let html = '<ul class="documents-list">';
+        
+        documents.forEach(doc => {
+            // Format file size
+            const fileSize = formatFileSize(doc.file_size);
+            
+            // Format last modified date
+            const lastModified = new Date(doc.last_modified * 1000).toLocaleString();
+            
+            html += `
+                <li class="document-item">
+                    <div class="document-info">
+                        <span class="document-name">${doc.filename}</span>
+                        <span class="document-meta">${fileSize} • ${lastModified}</span>
+                    </div>
+                    <button class="btn delete-btn" data-filename="${doc.filename}" data-agent="${agentId}">Delete</button>
+                </li>
+            `;
+        });
+        
+        html += '</ul>';
+        documentsContainer.innerHTML = html;
+        
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', async () => {
+                const filename = button.dataset.filename;
+                const agentId = button.dataset.agent;
+                
+                if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                    try {
+                        const response = await fetch(`/documents/${agentId}/${filename}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            // Refresh documents list
+                            loadDocuments(agentId);
+                        } else {
+                            const data = await response.json();
+                            alert(`Error: ${data.error || 'Failed to delete document'}`);
+                        }
+                    } catch (error) {
+                        alert(`Error: ${error.message}`);
+                    }
+                }
+            });
+        });
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    
     // Copy share link
     if (copyLinkButton) {
         copyLinkButton.addEventListener('click', () => {
@@ -255,3 +411,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2000);
         });
     }
+    
+    // Load documents when agent is created
+    document.addEventListener('agentCreated', (e) => {
+        const agentId = e.detail.agentId;
+        if (agentId) {
+            loadDocuments(agentId);
+        }
+    });

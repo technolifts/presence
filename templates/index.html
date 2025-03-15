@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Voice Agent - Create Your Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/document-upload.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -114,6 +115,34 @@
                         <button id="speakButton" class="btn secondary-btn">Ask Question</button>
                         <div class="test-audio-player" style="display: none;">
                             <audio id="testAudio" controls></audio>
+                        </div>
+                    </div>
+                    
+                    <div class="document-upload-section">
+                        <h3>Add Documents for Context</h3>
+                        <p>Upload documents to provide additional context for your AI agent. This helps your agent answer questions more accurately based on your content.</p>
+                        
+                        <div class="document-upload">
+                            <form id="documentUploadForm">
+                                <div class="form-group">
+                                    <label for="documentFile">Select Document:</label>
+                                    <input type="file" id="documentFile" name="document" accept=".pdf,.txt,.docx,.doc,.md">
+                                    <p class="tip">Supported formats: PDF, TXT, DOCX, MD</p>
+                                </div>
+                                <button type="submit" id="uploadDocumentButton" class="btn secondary-btn">Upload Document</button>
+                            </form>
+                        </div>
+                        
+                        <div id="documentStatus" class="status-container" style="display: none;">
+                            <div class="loader"></div>
+                            <p>Processing document... This may take a moment.</p>
+                        </div>
+                        
+                        <div id="documentsList" class="documents-list">
+                            <h4>Uploaded Documents</h4>
+                            <div id="documentsContainer">
+                                <p class="no-documents">No documents uploaded yet.</p>
+                            </div>
                         </div>
                     </div>
                     

@@ -10,6 +10,7 @@ import os
 import requests
 import json
 import datetime
+import glob
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file
 from dotenv import load_dotenv
 
@@ -85,6 +86,10 @@ def clone_voice():
     profile_name = request.form.get("profile_name", "")
     profile_title = request.form.get("profile_title", "")
     profile_bio = request.form.get("profile_bio", "")
+    
+    # Create documents directory for this agent (will be populated later)
+    documents_dir = os.path.join(app.root_path, "documents")
+    os.makedirs(documents_dir, exist_ok=True)
     
     # Create a more detailed description for the voice
     if not description and (profile_name or profile_title or profile_bio):
@@ -200,6 +205,17 @@ def chat():
         app.logger.error(f"Error loading agent profile: {str(e)}")
         return jsonify({"error": "Error loading agent profile"}), 500
     
+    # Get agent documents if available
+    agent_documents = []
+    documents_dir = os.path.join(app.root_path, "documents", agent_id)
+    if os.path.exists(documents_dir):
+        for doc_file in glob.glob(os.path.join(documents_dir, "*.txt")):
+            try:
+                with open(doc_file, "r", encoding="utf-8") as f:
+                    agent_documents.append(f.read())
+            except Exception as e:
+                app.logger.error(f"Error reading document {doc_file}: {str(e)}")
+    
     # Generate response using Anthropic Claude
     try:
         import anthropic
@@ -234,6 +250,15 @@ When responding to the user:
 5. If asked something you don't know, respond naturally without making up specific details
 6. Maintain the person's tone, vocabulary, and communication patterns
 """
+
+        # Add document context if available
+        if agent_documents:
+            system_prompt += "\n\nAdditional context from documents:\n"
+            for i, doc in enumerate(agent_documents):
+                # Limit document length to avoid exceeding context window
+                max_doc_length = 10000  # Adjust based on your model's context window
+                doc_text = doc[:max_doc_length] + "..." if len(doc) > max_doc_length else doc
+                system_prompt += f"\nDocument {i+1}:\n{doc_text}\n"
         
         # Get conversation history from session
         conversation_key = f"conversation_{agent_id}"
@@ -283,6 +308,54 @@ When responding to the user:
     except Exception as e:
         app.logger.error(f"Error in chat: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/upload-document", methods=["POST"])
+def upload_document():
+    """Upload a document to be associated with an agent"""
+    if "document" not in request.files:
+        return jsonify({"error": "No document file provided"}), 400
+    
+    document_file = request.files["document"]
+    agent_id = request.form.get("agent_id")
+    
+    if not agent_id:
+        return jsonify({"error": "No agent ID provided"}), 400
+    
+    # Check if agent exists
+    profile_path = os.path.join(app.root_path, "profiles", f"{agent_id}.json")
+    if not os.path.exists(profile_path):
+        return jsonify({"error": "Agent not found"}), 404
+    
+    # Send the document to the API for parsing
+    files = {"file": (document_file.filename, document_file, document_file.content_type)}
+    data = {"agent_id": agent_id}
+    
+    response, status_code = api_request("/api/documents/parse", method="POST", data=data, files=files)
+    
+    if status_code == 200:
+        return jsonify(response)
+    
+    return jsonify(response), status_code
+
+@app.route("/documents/<agent_id>")
+def list_documents(agent_id):
+    """List all documents associated with an agent"""
+    response, status_code = api_request(f"/api/documents?agent_id={agent_id}")
+    
+    if status_code == 200:
+        return jsonify(response)
+    
+    return jsonify(response), status_code
+
+@app.route("/documents/<agent_id>/<filename>", methods=["DELETE"])
+def delete_document(agent_id, filename):
+    """Delete a document associated with an agent"""
+    response, status_code = api_request(f"/api/documents/{filename}?agent_id={agent_id}", method="DELETE")
+    
+    if status_code == 200:
+        return jsonify(response)
+    
+    return jsonify(response), status_code
 
 @app.route("/last-response-text")
 def last_response_text():
