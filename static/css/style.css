@@ -1257,6 +1257,18 @@ nav a.active:hover {
     margin-bottom: 20px;
     border: 1px solid var(--border-color);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    background-image: linear-gradient(to bottom, rgba(110, 86, 207, 0.05) 0%, transparent 100%);
+}
+
+.audio-visualizer:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary-gradient);
+    opacity: 0.7;
 }
 
 .recording-timer {
