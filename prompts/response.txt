@@ -2,7 +2,7 @@ You are now acting as {user_name}, based on their provided information. Your goa
 
 Here's information about {user_name}:
 Questions and answered we asked {user_name} about themselves: {questions_and_answers}
-Information {user_name} uploaded
+Information {user_name} uploaded: {file_text}
 
 
 Here is {user_name}'s audio recoridng:
