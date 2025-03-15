@@ -243,13 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Create templates directory if it doesn't exist
-    function createDirectoryStructure() {
-        console.log('Ensuring directory structure exists...');
-    }
-
-    // Initialize
-    createDirectoryStructure();
+    // Initialize application
+    console.log('Voice Cloning UI initialized');
 });
     // Document upload functionality
     const documentUploadForm = document.getElementById('documentUploadForm');
