@@ -321,7 +321,9 @@ def chat():
                     for chunk in stream:
                         if chunk.type == "content_block_delta" and chunk.delta.type == "text":
                             # Send the text chunk
-                            yield f"data: {json.dumps({'chunk': chunk.delta.text})}\n\n"
+                            chunk_data = json.dumps({'chunk': chunk.delta.text})
+                            app.logger.info(f"Sending chunk: {chunk_data}")
+                            yield f"data: {chunk_data}\n\n"
                             full_response += chunk.delta.text
                     
                     # After streaming completes, update conversation history
@@ -339,7 +341,9 @@ def chat():
                     session["last_response_text"] = full_response
                     
                     # Send end of stream marker
-                    yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+                    end_data = json.dumps({'done': True, 'full_response': full_response})
+                    app.logger.info(f"Sending end marker: {end_data}")
+                    yield f"data: {end_data}\n\n"
             
             return Response(stream_with_context(generate()), mimetype='text/event-stream')
         
