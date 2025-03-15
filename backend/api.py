@@ -211,6 +211,61 @@ async def text_to_speech(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
 
+@app.post("/api/tts/download")
+async def download_tts(
+    request: TTSRequest,
+    filename: Optional[str] = None,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Convert text to speech and provide a downloadable MP3 file.
+    
+    Args:
+        request: The TTS request containing text and voice information
+        filename: Optional custom filename for the downloaded file
+    """
+    if not voice_processor:
+        raise HTTPException(status_code=500, detail="Voice processor not initialized")
+    
+    if not request.voice_id and not request.voice_name:
+        raise HTTPException(status_code=400, detail="Either voice_id or voice_name must be provided")
+    
+    try:
+        # Generate speech
+        audio = voice_processor.text_to_speech(
+            text=request.text,
+            voice_id=request.voice_id,
+            voice_name=request.voice_name
+        )
+        
+        # Ensure audio is bytes, not a generator
+        if not isinstance(audio, bytes):
+            # If it's a generator or other iterable, convert to bytes
+            if hasattr(audio, '__iter__') and not isinstance(audio, (str, bytes, bytearray)):
+                audio_bytes = b''.join(chunk if isinstance(chunk, bytes) else bytes(chunk) for chunk in audio)
+            else:
+                raise TypeError(f"Unexpected audio type: {type(audio)}")
+        else:
+            audio_bytes = audio
+        
+        # Use provided filename or generate one
+        if not filename:
+            voice_name = request.voice_name or "voice"
+            safe_voice_name = ''.join(c if c.isalnum() else '_' for c in voice_name)
+            filename = f"{safe_voice_name}_{len(request.text[:20])}.mp3"
+        
+        if not filename.endswith('.mp3'):
+            filename += '.mp3'
+        
+        # Return audio as a downloadable file
+        return StreamingResponse(
+            BytesIO(audio_bytes),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
+
 @app.post("/api/optimize-audio")
 async def optimize_audio(
     file: UploadFile = File(...),

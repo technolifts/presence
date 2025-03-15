@@ -113,5 +113,37 @@ def text_to_speech():
     
     return jsonify(response), status_code
 
+@app.route("/download-speech", methods=["POST"])
+def download_speech():
+    """Download text-to-speech as an MP3 file"""
+    data = request.json
+    
+    if not data or "text" not in data:
+        return jsonify({"error": "No text provided"}), 400
+    
+    voice_id = data.get("voice_id") or session.get("last_voice_id")
+    
+    if not voice_id:
+        return jsonify({"error": "No voice ID provided or found in session"}), 400
+    
+    filename = data.get("filename", "voice_output.mp3")
+    
+    payload = {
+        "text": data["text"],
+        "voice_id": voice_id,
+        "filename": filename
+    }
+    
+    response, status_code = api_request("/api/tts/download", method="POST", data=json.dumps(payload))
+    
+    if status_code == 200:
+        # This is binary audio data with download headers
+        return response, 200, {
+            "Content-Type": "audio/mpeg",
+            "Content-Disposition": f"attachment; filename=\"{filename}\""
+        }
+    
+    return jsonify(response), status_code
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5050)
