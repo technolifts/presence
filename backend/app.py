@@ -17,6 +17,9 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from dotenv import load_dotenv
 from debug_utils import log_anthropic_response
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
 # Load environment variables
 load_dotenv()
 
@@ -27,6 +30,12 @@ API_KEY = os.getenv("API_KEY", "default_api_key")
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev_secret_key")  # Set a secure key in .env for production
+
+# Configure app logging
+app.logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+app.logger.addHandler(handler)
 
 # Load prompt configuration
 def load_prompt_config():
@@ -251,10 +260,14 @@ def chat():
         if not anthropic_api_key:
             app.logger.error("ANTHROPIC_API_KEY not found in environment")
             return jsonify({"error": "API key not configured"}), 500
-            
+                
+        # Validate API key format
+        if not anthropic_api_key.startswith("sk-ant-"):
+            app.logger.warning(f"Anthropic API key has unexpected format. Should start with 'sk-ant-'")
+                
         # Initialize Anthropic client
         client = anthropic.Anthropic(api_key=anthropic_api_key)
-            
+                
         # Log the API key (first 4 and last 4 characters only, for security)
         if anthropic_api_key:
             masked_key = anthropic_api_key[:4] + "..." + anthropic_api_key[-4:] if len(anthropic_api_key) > 8 else "***"
@@ -305,39 +318,50 @@ def chat():
                 # Log the request
                 app.logger.info(f"Sending streaming request to Anthropic API with message: {message[:50]}...")
                 
-                # Create a streaming response
-                with client.messages.stream(
-                    model="claude-3-7-sonnet-20250219",
-                    system=system_prompt,
-                    max_tokens=1000,
-                    messages=[
-                        *conversation_history,
-                        {"role": "user", "content": message}
-                    ]
-                ) as stream:
-                    # Log the stream creation
-                    app.logger.info("Stream created successfully")
-                
-                    # Track if we've received any content
-                    has_content = False
-                
-                    # Yield each chunk as it arrives
-                    for chunk in stream:
-                        if chunk.type == "content_block_delta" and chunk.delta.type == "text":
-                            # Send the text chunk
-                            chunk_data = json.dumps({'chunk': chunk.delta.text})
-                            app.logger.info(f"Sending chunk: {chunk_data}")
-                            yield f"data: {chunk_data}\n\n"
-                            full_response += chunk.delta.text
-                            has_content = True
-                
-                    # If we didn't get any content, generate a fallback response
-                    if not has_content:
-                        fallback_response = "I'm sorry, I couldn't generate a response at this time. Please try again."
-                        fallback_chunk = json.dumps({'chunk': fallback_response})
-                        app.logger.warning("No content received from API, sending fallback response")
-                        yield f"data: {fallback_chunk}\n\n"
-                        full_response = fallback_response
+                try:
+                    # Create a streaming response
+                    with client.messages.stream(
+                        model="claude-3-7-sonnet-20250219",
+                        system=system_prompt,
+                        max_tokens=1000,
+                        messages=[
+                            *conversation_history,
+                            {"role": "user", "content": message}
+                        ]
+                    ) as stream:
+                        # Log the stream creation
+                        app.logger.info("Stream created successfully")
+                    
+                        # Track if we've received any content
+                        has_content = False
+                    
+                        # Yield each chunk as it arrives
+                        for chunk in stream:
+                            if chunk.type == "content_block_delta" and chunk.delta.type == "text":
+                                # Send the text chunk
+                                chunk_data = json.dumps({'chunk': chunk.delta.text})
+                                app.logger.info(f"Sending chunk: {chunk_data}")
+                                yield f"data: {chunk_data}\n\n"
+                                full_response += chunk.delta.text
+                                has_content = True
+                    
+                        # If we didn't get any content, generate a fallback response
+                        if not has_content:
+                            fallback_response = "I'm sorry, I couldn't generate a response at this time. Please try again."
+                            fallback_chunk = json.dumps({'chunk': fallback_response})
+                            app.logger.warning("No content received from API, sending fallback response")
+                            yield f"data: {fallback_chunk}\n\n"
+                            full_response = fallback_response
+                except Exception as e:
+                    # Log the error
+                    app.logger.error(f"Error in Anthropic streaming: {str(e)}")
+                    
+                    # Send an error response
+                    fallback_response = "I'm sorry, I couldn't generate a response at this time. Please try again."
+                    fallback_chunk = json.dumps({'chunk': fallback_response})
+                    app.logger.warning(f"Error in Anthropic streaming: {str(e)}, sending fallback response")
+                    yield f"data: {fallback_chunk}\n\n"
+                    full_response = fallback_response
                 
                     # After streaming completes, update conversation history
                     conversation_history.append({"role": "user", "content": message})
