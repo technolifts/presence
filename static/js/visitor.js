@@ -125,16 +125,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Process the stream
                 let buffer = '';
-                
+                                
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
-                    
+                                    
                     // Decode the chunk and add to buffer
                     buffer += decoder.decode(value, { stream: true });
-                    
-                    console.log("Received chunk:", buffer); // Debug log
-                    
+                                    
+                    console.log("Received buffer:", buffer.length > 100 ? buffer.substring(0, 100) + "..." : buffer); // Debug log
+                                    
                     // Process complete events in the buffer
                     const lines = buffer.split('\n\n');
                     buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
@@ -339,17 +339,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const decoder = new TextDecoder();
                 
                 // Process the stream
+                let buffer = '';
+                
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     
-                    // Decode the chunk
-                    const chunk = decoder.decode(value);
+                    // Decode the chunk and add to buffer
+                    buffer += decoder.decode(value, { stream: true });
                     
-                    console.log("Received chunk:", chunk); // Debug log
+                    console.log("Received buffer:", buffer.length > 100 ? buffer.substring(0, 100) + "..." : buffer); // Debug log
                     
-                    // Process each event in the chunk
-                    const events = chunk.split('\n\n');
+                    // Process complete events in the buffer
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop() || ''; // Keep the last incomplete chunk in the buffer
                     for (const event of events) {
                         if (event.startsWith('data: ')) {
                             try {

@@ -319,7 +319,11 @@ def chat():
                 app.logger.info(f"Sending streaming request to Anthropic API with message: {message[:50]}...")
                 
                 try:
-                    # Create a streaming response
+                    # Create a streaming response with proper headers
+                    app.logger.info(f"Creating streaming request with model: claude-3-7-sonnet-20250219")
+                    app.logger.info(f"System prompt length: {len(system_prompt)}")
+                    app.logger.info(f"Conversation history: {len(conversation_history)} messages")
+                    
                     with client.messages.stream(
                         model="claude-3-7-sonnet-20250219",
                         system=system_prompt,
@@ -327,7 +331,8 @@ def chat():
                         messages=[
                             *conversation_history,
                             {"role": "user", "content": message}
-                        ]
+                        ],
+                        temperature=0.7
                     ) as stream:
                         # Log the stream creation
                         app.logger.info("Stream created successfully")
@@ -337,6 +342,8 @@ def chat():
                     
                         # Yield each chunk as it arrives
                         for chunk in stream:
+                            app.logger.info(f"Received chunk type: {chunk.type}")
+                            
                             if chunk.type == "content_block_delta" and chunk.delta.type == "text":
                                 # Send the text chunk
                                 chunk_data = json.dumps({'chunk': chunk.delta.text})
@@ -344,6 +351,12 @@ def chat():
                                 yield f"data: {chunk_data}\n\n"
                                 full_response += chunk.delta.text
                                 has_content = True
+                            elif chunk.type == "message_delta":
+                                app.logger.info(f"Message delta received: {chunk.delta}")
+                            elif chunk.type == "content_block_start":
+                                app.logger.info(f"Content block start: {chunk.content_block}")
+                            elif chunk.type == "content_block_stop":
+                                app.logger.info(f"Content block stop: {chunk.content_block}")
                     
                         # If we didn't get any content, generate a fallback response
                         if not has_content:
@@ -363,24 +376,24 @@ def chat():
                     yield f"data: {fallback_chunk}\n\n"
                     full_response = fallback_response
                 
-                    # After streaming completes, update conversation history
-                    conversation_history.append({"role": "user", "content": message})
-                    conversation_history.append({"role": "assistant", "content": full_response})
+                # After streaming completes, update conversation history
+                conversation_history.append({"role": "user", "content": message})
+                conversation_history.append({"role": "assistant", "content": full_response})
                 
-                    # Trim history if it gets too long (keep last 10 messages)
-                    if len(conversation_history) > 10:
-                        conversation_history = conversation_history[-10:]
+                # Trim history if it gets too long (keep last 10 messages)
+                if len(conversation_history) > 10:
+                    conversation_history = conversation_history[-10:]
                 
-                    # Store updated history in session
-                    session[conversation_key] = conversation_history
+                # Store updated history in session
+                session[conversation_key] = conversation_history
                 
-                    # Store the response text in the session for retrieval
-                    session["last_response_text"] = full_response
+                # Store the response text in the session for retrieval
+                session["last_response_text"] = full_response
                 
-                    # Send end of stream marker
-                    end_data = json.dumps({'done': True, 'full_response': full_response})
-                    app.logger.info(f"Sending end marker: {end_data}")
-                    yield f"data: {end_data}\n\n"
+                # Send end of stream marker
+                end_data = json.dumps({'done': True, 'full_response': full_response})
+                app.logger.info(f"Sending end marker: {end_data}")
+                yield f"data: {end_data}\n\n"
             
             return Response(stream_with_context(generate()), mimetype='text/event-stream')
         
@@ -394,7 +407,8 @@ def chat():
                 messages=[
                     *conversation_history,
                     {"role": "user", "content": message}
-                ]
+                ],
+                temperature=0.7
             )
             # Log the successful response
             log_anthropic_response(message, response)
@@ -645,6 +659,53 @@ def download_speech():
         }
     
     return jsonify(response), status_code
+
+@app.route("/debug/anthropic-key")
+def debug_anthropic_key():
+    """Debug endpoint to check Anthropic API key"""
+    try:
+        # Get API key from environment
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            return jsonify({"error": "ANTHROPIC_API_KEY not found in environment"}), 500
+            
+        # Validate API key format
+        if not anthropic_api_key.startswith("sk-ant-"):
+            return jsonify({"warning": f"Anthropic API key has unexpected format. Should start with 'sk-ant-'", 
+                           "key_prefix": anthropic_api_key[:6] if anthropic_api_key else "None"}), 200
+        
+        # Mask the key for security
+        masked_key = anthropic_api_key[:4] + "..." + anthropic_api_key[-4:] if len(anthropic_api_key) > 8 else "***"
+        
+        # Try a simple API call
+        import anthropic
+        client = anthropic.Anthropic(api_key=anthropic_api_key)
+        
+        # Just get the available models to test the API key
+        try:
+            # This is a lightweight call to test the API key
+            response = client.messages.create(
+                model="claude-3-7-sonnet-20250219",
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Hello"}],
+                system="Respond with only the word 'OK' to test the API key."
+            )
+            return jsonify({
+                "status": "success", 
+                "key_format": "valid", 
+                "masked_key": masked_key,
+                "response": str(response)[:100] + "..."
+            }), 200
+        except Exception as e:
+            return jsonify({
+                "status": "error", 
+                "key_format": "valid but error occurred", 
+                "masked_key": masked_key,
+                "error": str(e)
+            }), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"Error checking Anthropic API key: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5050)
