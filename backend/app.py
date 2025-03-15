@@ -740,9 +740,9 @@ def debug_anthropic_stream():
             try:
                 with client.messages.stream(
                     model="claude-3-7-sonnet-20250219",
-                    max_tokens=100,
+                    max_tokens=75,
                     messages=[{"role": "user", "content": "Say hello and introduce yourself briefly"}],
-                    system="You are a helpful assistant."
+                    system="You are acting as this person."
                 ) as stream:
                     # Log each event type
                     events = []
