@@ -81,48 +81,79 @@ class VoiceProcessor:
         
         return transcript.text
     
-    def clone_voice(self, audio_file: Union[str, BinaryIO], voice_name: str) -> str:
+    def clone_voice(self, audio_file: Union[str, BinaryIO], voice_name: str, 
+                   description: Optional[str] = None, 
+                   remove_background_noise: bool = False) -> str:
         """
         Clone a voice using ElevenLabs API.
         
         Args:
             audio_file: Path to an audio file or a file-like object
             voice_name: Name to assign to the cloned voice
+            description: Optional description for the voice
+            remove_background_noise: Whether to remove background noise from samples
             
         Returns:
             Voice ID of the cloned voice
         """
-        # Handle file path vs file object
-        if isinstance(audio_file, str):
-            with open(audio_file, "rb") as f:
-                voice_data = f.read()
-        else:
-            # Save position and rewind
-            pos = audio_file.tell()
-            audio_file.seek(0)
-            voice_data = audio_file.read()
-            # Restore position
-            audio_file.seek(pos)
-        
-        # Create a temporary file for the voice data
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
-            temp_file.write(voice_data)
-            temp_file_path = temp_file.name
+        # Prepare files for multipart form data
+        files = []
+        temp_files = []
         
         try:
-            # Clone the voice using ElevenLabs
+            # Handle file path vs file object
+            if isinstance(audio_file, str):
+                # If it's a file path, just use it directly
+                files.append(("files", (os.path.basename(audio_file), open(audio_file, "rb"), "audio/mpeg")))
+                temp_files.append(None)  # No temp file needed
+            else:
+                # If it's a file object, create a temporary file
+                pos = audio_file.tell()
+                audio_file.seek(0)
+                voice_data = audio_file.read()
+                audio_file.seek(pos)  # Restore position
+                
+                temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+                temp_file.write(voice_data)
+                temp_file.close()
+                
+                files.append(("files", (os.path.basename(temp_file.name), open(temp_file.name, "rb"), "audio/mpeg")))
+                temp_files.append(temp_file.name)
+            
+            # Prepare form data
+            form_data = {
+                "name": voice_name,
+                "remove_background_noise": "true" if remove_background_noise else "false"
+            }
+            
+            if description:
+                form_data["description"] = description
+            else:
+                form_data["description"] = f"Cloned voice: {voice_name}"
+            
+            # Make the API request
             voice_response = self.elevenlabs_client.voices.add(
                 name=voice_name,
-                description=f"Cloned voice: {voice_name}",
-                files=[temp_file_path]
+                description=form_data["description"],
+                files=[f[1][1].name for f in files],  # Extract file paths
+                remove_background_noise=remove_background_noise
             )
             
             voice_id = voice_response.voice_id
             self.cloned_voices[voice_name] = voice_id
             return voice_id
+            
         finally:
-            # Clean up the temporary file
-            os.unlink(temp_file_path)
+            # Close and clean up any file handles and temporary files
+            for file_tuple in files:
+                file_tuple[1][1].close()
+            
+            for temp_file_path in temp_files:
+                if temp_file_path:
+                    try:
+                        os.unlink(temp_file_path)
+                    except (OSError, FileNotFoundError):
+                        pass
     
     def text_to_speech(self, text: str, voice_name: str = None, voice_id: str = None, 
                        save_path: Optional[str] = None) -> Optional[bytes]:
@@ -185,7 +216,9 @@ class VoiceProcessor:
         play(audio_data)
     
     def process_voice_file(self, audio_file: str, clone_voice: bool = False, 
-                          voice_name: Optional[str] = None) -> str:
+                          voice_name: Optional[str] = None,
+                          description: Optional[str] = None,
+                          remove_background_noise: bool = False) -> str:
         """
         Process a voice file to extract text and optionally clone the voice.
         
@@ -193,6 +226,8 @@ class VoiceProcessor:
             audio_file: Path to the audio file
             clone_voice: Whether to clone the voice
             voice_name: Name to assign to the cloned voice (required if clone_voice is True)
+            description: Optional description for the cloned voice
+            remove_background_noise: Whether to remove background noise from samples
             
         Returns:
             Transcribed text from the audio
@@ -205,7 +240,12 @@ class VoiceProcessor:
             if not voice_name:
                 raise ValueError("voice_name must be provided when clone_voice is True")
             
-            self.clone_voice(audio_file, voice_name)
+            self.clone_voice(
+                audio_file, 
+                voice_name, 
+                description=description,
+                remove_background_noise=remove_background_noise
+            )
             print(f"Voice cloned successfully as '{voice_name}'")
         
         return text

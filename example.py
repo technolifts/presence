@@ -32,8 +32,16 @@ def main():
     clone_voice = input("Would you like to clone a voice from the audio file? (y/n): ").lower() == 'y'
     if clone_voice:
         voice_name = input("Enter a name for the cloned voice: ")
+        description = input("Enter a description (optional, press Enter to skip): ") or None
+        remove_noise = input("Remove background noise? (y/n): ").lower() == 'y'
+        
         try:
-            voice_id = voice_processor.clone_voice(audio_file, voice_name)
+            voice_id = voice_processor.clone_voice(
+                audio_file, 
+                voice_name,
+                description=description,
+                remove_background_noise=remove_noise
+            )
             print(f"Voice cloned successfully with ID: {voice_id}")
             
             # Example 3: Text to speech with cloned voice

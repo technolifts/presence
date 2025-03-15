@@ -76,6 +76,8 @@ def main():
     clone_parser = subparsers.add_parser("clone", help="Clone a voice from an audio file")
     clone_parser.add_argument("--file", type=str, required=True, help="Path to the audio file")
     clone_parser.add_argument("--name", type=str, required=True, help="Name for the cloned voice")
+    clone_parser.add_argument("--description", type=str, help="Description for the cloned voice")
+    clone_parser.add_argument("--remove-noise", action="store_true", help="Remove background noise from samples")
     
     # Text to speech with cloned voice command
     tts_parser = subparsers.add_parser("speak", help="Convert text to speech with a voice")
@@ -144,7 +146,12 @@ def main():
     
     elif args.command == "clone":
         try:
-            voice_id = voice_processor.clone_voice(args.file, args.name)
+            voice_id = voice_processor.clone_voice(
+                args.file, 
+                args.name,
+                description=args.description,
+                remove_background_noise=args.remove_noise
+            )
             print(f"Voice cloned successfully with ID: {voice_id}")
                 
         except Exception as e:
