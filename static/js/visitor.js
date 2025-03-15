@@ -161,9 +161,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (data.done) {
                                     console.log("Stream complete, full response:", fullResponse); // Debug log
                                     
-                                    // Only play audio if we have a response
-                                    if (fullResponse.trim()) {
-                                        // Play the audio response
+                                    // Check if the response is the fallback error message
+                                    if (fullResponse.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                                        // Don't try to play audio for the fallback message
+                                        console.log("Received fallback error message, not playing audio");
+                                        responseParagraph.textContent = fullResponse;
+                                    } else if (fullResponse.trim()) {
+                                        // Play the audio response for normal responses
                                         playAudioResponse(fullResponse, agentId, responseMessage);
                                     } else {
                                         // Handle empty response
@@ -367,8 +371,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
                                     console.log("Stream complete, full response:", fullResponse); // Debug log
-                                    // Play the audio response
-                                    playAudioResponse(fullResponse, selectedAgentId, responseMessage);
+                                    
+                                    // Check if the response is the fallback error message
+                                    if (fullResponse.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                                        // Don't try to play audio for the fallback message
+                                        console.log("Received fallback error message, not playing audio");
+                                        responseParagraph.textContent = fullResponse;
+                                    } else {
+                                        // Play the audio response
+                                        playAudioResponse(fullResponse, selectedAgentId, responseMessage);
+                                    }
                                 }
                             } catch (e) {
                                 console.error('Error parsing event data:', e, 'Raw event:', event);
@@ -500,9 +512,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function playAudioResponse(text, agentId, messageElement) {
         try {
-            // Check if text is empty
+            // Check if text is empty or is the fallback error message
             if (!text || !text.trim()) {
                 console.error('Empty text provided to playAudioResponse');
+                return;
+            }
+            
+            // Check if the text is the fallback error message
+            if (text.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                console.error('Fallback error message provided to playAudioResponse');
                 return;
             }
             
