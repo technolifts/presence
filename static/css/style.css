@@ -577,12 +577,16 @@ nav a.active:hover {
 .agent-card {
     background-color: var(--bg-card);
     border-radius: 12px;
-    padding: 24px;
+    padding: 20px;
     box-shadow: var(--box-shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     border: 1px solid var(--border-color);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 160px;
 }
 
 .agent-card:before {

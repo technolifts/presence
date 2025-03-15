@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             agentCard.innerHTML = `
                 <h3>${agent.name}</h3>
                 <p class="agent-title">${agent.title || ''}</p>
-                <p class="agent-bio">${agent.bio || 'No bio available'}</p>
                 <button class="btn secondary-btn select-agent" data-id="${agent.voice_id}" data-name="${agent.name}">
                     Talk to ${agent.name}
                 </button>
