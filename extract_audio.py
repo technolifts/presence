@@ -6,7 +6,13 @@ Script to extract audio from MP4 files and save as MP3.
 import os
 import sys
 import argparse
-from moviepy.editor import VideoFileClip
+
+try:
+    from moviepy.editor import VideoFileClip
+except ImportError:
+    print("Error: The required 'moviepy' package is not installed.")
+    print("Please install it using: pip install moviepy")
+    sys.exit(1)
 
 def extract_audio(input_file, output_file=None):
     """
