@@ -351,11 +351,12 @@ async def download_tts(
 @app.post("/api/documents/parse")
 async def parse_document(
     file: UploadFile = File(...),
-    agent_id: Optional[str] = Form(None)
+    agent_id: Optional[str] = Form(None),
+    temp_storage: Optional[str] = Form(None)
 ):
     """
     Parse a document and extract its text content.
-    Optionally associate the document with an agent.
+    Optionally associate the document with an agent or store temporarily.
     """
     if not document_parser:
         raise HTTPException(status_code=500, detail="Document parser not initialized")
@@ -408,6 +409,9 @@ async def parse_document(
             with open(original_file_path, "wb") as f:
                 with open(temp_file.name, "rb") as src:
                     f.write(src.read())
+        
+        # If temp_storage is provided, we don't need to save the file here
+        # as the Flask app will handle that
         
         return {
             "text": text[:1000] + "..." if len(text) > 1000 else text,  # Preview only

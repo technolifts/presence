@@ -15,6 +15,7 @@ def ensure_directories():
     directories = [
         os.path.join(base_dir, "documents"),
         os.path.join(base_dir, "profiles"),
+        os.path.join(base_dir, "temp_documents"),
     ]
     
     # Create each directory if it doesn't exist

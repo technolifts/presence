@@ -43,6 +43,7 @@ def ensure_directories():
     directories = [
         os.path.join(app.root_path, "documents"),
         os.path.join(app.root_path, "profiles"),
+        os.path.join(app.root_path, "temp_documents"),
     ]
     
     for directory in directories:
@@ -472,6 +473,155 @@ def chat():
     except Exception as e:
         app.logger.error(f"Error in chat: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/upload-temp-document", methods=["POST"])
+def upload_temp_document():
+    """Upload a document to temporary storage before agent creation"""
+    if "document" not in request.files:
+        return jsonify({"error": "No document file provided"}), 400
+    
+    document_file = request.files["document"]
+    
+    # Ensure the document has a filename
+    if document_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+    
+    # Create temp documents directory structure
+    temp_docs_dir = os.path.join(app.root_path, "temp_documents")
+    os.makedirs(temp_docs_dir, exist_ok=True)
+    
+    # Generate a unique ID for this document
+    import uuid
+    temp_id = str(uuid.uuid4())
+    
+    # Create a directory for this temp document
+    doc_dir = os.path.join(temp_docs_dir, temp_id)
+    os.makedirs(doc_dir, exist_ok=True)
+    
+    # Save the file
+    local_filename = os.path.join(doc_dir, document_file.filename)
+    document_file.save(local_filename)
+    
+    # Parse the document content
+    try:
+        # Send the document to the API for parsing
+        with open(local_filename, 'rb') as f:
+            files = {"file": (document_file.filename, f, document_file.content_type)}
+            data = {"temp_storage": "true"}
+            
+            response, status_code = api_request("/api/documents/parse", method="POST", data=data, files=files)
+        
+        if status_code == 200:
+            # Save the parsed content
+            parsed_content = response.get("text", "")
+            with open(os.path.join(doc_dir, "content.txt"), "w", encoding="utf-8") as f:
+                f.write(parsed_content)
+            
+            # Return success with temp ID
+            return jsonify({
+                "status": "success",
+                "message": "Document uploaded to temporary storage",
+                "temp_id": temp_id,
+                "filename": document_file.filename
+            })
+        else:
+            # If parsing failed, still keep the file but return the error
+            app.logger.error(f"Error parsing document: {response}")
+            return jsonify({
+                "status": "warning",
+                "message": "Document uploaded but parsing failed",
+                "error": response.get("error", "Unknown error"),
+                "temp_id": temp_id,
+                "filename": document_file.filename
+            })
+    
+    except Exception as e:
+        app.logger.error(f"Error processing temporary document: {str(e)}")
+        return jsonify({"error": f"Error processing document: {str(e)}"}), 500
+
+@app.route("/associate-document", methods=["POST"])
+def associate_document():
+    """Associate a previously uploaded temporary document with an agent"""
+    temp_id = request.form.get("temp_id")
+    agent_id = request.form.get("agent_id")
+    
+    if not temp_id:
+        return jsonify({"error": "No temporary document ID provided"}), 400
+    
+    if not agent_id:
+        return jsonify({"error": "No agent ID provided"}), 400
+    
+    # Check if agent exists
+    profile_path = os.path.join(app.root_path, "profiles", f"{agent_id}.json")
+    if not os.path.exists(profile_path):
+        return jsonify({"error": "Agent not found"}), 404
+    
+    # Check if temp document exists
+    temp_doc_dir = os.path.join(app.root_path, "temp_documents", temp_id)
+    if not os.path.exists(temp_doc_dir):
+        return jsonify({"error": "Temporary document not found"}), 404
+    
+    try:
+        # Create agent documents directory
+        agent_docs_dir = os.path.join(app.root_path, "documents", agent_id)
+        os.makedirs(agent_docs_dir, exist_ok=True)
+        
+        # Find the original file and content file
+        files = os.listdir(temp_doc_dir)
+        original_file = None
+        content_file = None
+        
+        for file in files:
+            if file == "content.txt":
+                content_file = os.path.join(temp_doc_dir, file)
+            elif not file.startswith("."):
+                original_file = os.path.join(temp_doc_dir, file)
+        
+        if not original_file:
+            return jsonify({"error": "Original document file not found in temporary storage"}), 404
+        
+        # Get the original filename
+        original_filename = os.path.basename(original_file)
+        
+        # Create a timestamp for the filename
+        import time
+        timestamp = int(time.time())
+        
+        # Copy the original file to the agent's documents directory
+        import shutil
+        safe_filename = ''.join(c if c.isalnum() or c in '._- ' else '_' for c in os.path.splitext(original_filename)[0])
+        file_ext = os.path.splitext(original_filename)[1]
+        
+        # Copy the original file
+        original_dest = os.path.join(agent_docs_dir, f"original_{safe_filename}_{timestamp}{file_ext}")
+        shutil.copy2(original_file, original_dest)
+        
+        # Copy or create the content file
+        if content_file and os.path.exists(content_file):
+            with open(content_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            content_dest = os.path.join(agent_docs_dir, f"{safe_filename}_{timestamp}{file_ext}.txt")
+            with open(content_dest, "w", encoding="utf-8") as f:
+                f.write(content)
+        else:
+            # If no content file, create one with a placeholder
+            content_dest = os.path.join(agent_docs_dir, f"{safe_filename}_{timestamp}{file_ext}.txt")
+            with open(content_dest, "w", encoding="utf-8") as f:
+                f.write(f"Content for {original_filename} (parsing failed)")
+        
+        # Clean up the temporary directory
+        shutil.rmtree(temp_doc_dir)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Document {original_filename} associated with agent {agent_id}",
+            "filename": os.path.basename(content_dest)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error associating document: {str(e)}")
+        return jsonify({"error": f"Error associating document: {str(e)}"}), 500
 
 @app.route("/upload-document", methods=["POST"])
 def upload_document():
