@@ -415,7 +415,6 @@ audio::-webkit-media-controls-time-remaining-display {
 
 audio::-webkit-media-controls-timeline {
     background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 6px;
     height: 8px;
     margin: 0 10px;
 }
