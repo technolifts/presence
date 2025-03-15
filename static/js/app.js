@@ -83,15 +83,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Get form data
-            const voiceName = document.getElementById('voiceName').value;
-            const voiceDescription = document.getElementById('voiceDescription').value;
+            // Get profile information
+            const name = profileName.value;
+            if (!name) {
+                alert('Please enter your name');
+                profileName.focus();
+                return;
+            }
+            
+            // Set the voice name and description from profile
+            const voiceName = name + "'s Voice";
+            document.getElementById('voiceName').value = voiceName;
+            
+            const title = profileTitle.value;
+            const bio = profileBio.value;
+            const voiceDescription = `AI Agent for ${name}${title ? ', ' + title : ''}`;
+            document.getElementById('voiceDescription').value = voiceDescription;
             
             // Create form data for API request
             const formData = new FormData();
             formData.append('audio', audioBlob, `${voiceName}.mp3`);
             formData.append('name', voiceName);
             formData.append('description', voiceDescription || `Voice clone for ${voiceName}`);
+            formData.append('profile_name', name);
+            formData.append('profile_title', title);
+            formData.append('profile_bio', bio);
             
             // Show loading state
             createVoiceButton.disabled = true;
@@ -109,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (response.ok) {
                     // Show success result
-                    resultVoiceName.textContent = voiceName;
+                    document.getElementById('resultAgentName').textContent = name;
                     resultVoiceId.textContent = data.voice_id;
                     cloneResult.style.display = 'block';
                     
