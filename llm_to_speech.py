@@ -11,7 +11,8 @@ import time
 import argparse
 from typing import Optional
 import anthropic
-from elevenlabs import generate, play, set_api_key, save
+from elevenlabs import Voice, VoiceSettings, generate, play, save
+from elevenlabs.api import User
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -23,7 +24,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 # Set ElevenLabs API key
 if ELEVENLABS_API_KEY:
-    set_api_key(ELEVENLABS_API_KEY)
+    os.environ["ELEVEN_API_KEY"] = ELEVENLABS_API_KEY
 
 
 def get_llm_response(prompt: str, model: str = "claude-3-opus-20240229") -> str:
@@ -55,13 +56,13 @@ def get_llm_response(prompt: str, model: str = "claude-3-opus-20240229") -> str:
     return message.content[0].text
 
 
-def text_to_speech(text: str, voice: str = "Adam", save_path: Optional[str] = None) -> None:
+def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str] = None) -> None:
     """
     Convert text to speech using ElevenLabs API.
     
     Args:
         text: The text to convert to speech
-        voice: The voice to use (default: Adam)
+        voice_name: The voice to use (default: Adam)
         save_path: Optional path to save the audio file
     """
     if not ELEVENLABS_API_KEY:
@@ -69,12 +70,13 @@ def text_to_speech(text: str, voice: str = "Adam", save_path: Optional[str] = No
     
     audio = generate(
         text=text,
-        voice=voice,
+        voice=voice_name,
         model="eleven_monolingual_v1"
     )
     
     if save_path:
-        save(audio, save_path)
+        with open(save_path, "wb") as f:
+            f.write(audio)
         print(f"Audio saved to {save_path}")
     else:
         play(audio)
