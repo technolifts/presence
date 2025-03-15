@@ -34,6 +34,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize recorder
     const recorder = new AudioRecorder(visualizerCanvas);
     let audioBlob = null;
+    
+    // Sample voice button
+    const useSampleVoiceButton = document.getElementById('useSampleVoice');
+    if (useSampleVoiceButton) {
+        useSampleVoiceButton.addEventListener('click', async () => {
+            try {
+                useSampleVoiceButton.disabled = true;
+                useSampleVoiceButton.textContent = 'Loading sample...';
+                
+                // Fetch the sample voice file
+                const response = await fetch('/backend/sample_voice.mp3');
+                audioBlob = await response.blob();
+                
+                // Display the sample audio
+                const audioURL = URL.createObjectURL(audioBlob);
+                recordedAudio.src = audioURL;
+                audioPlayer.style.display = 'block';
+                
+                // Enable the create voice button
+                createVoiceButton.disabled = false;
+                
+                // Update UI
+                useSampleVoiceButton.textContent = 'Sample voice loaded!';
+                recordButton.disabled = true;
+                
+                // Show success message
+                alert('Sample voice loaded successfully! You can now create an AI agent without recording.');
+            } catch (error) {
+                console.error('Error loading sample voice:', error);
+                alert('Error loading sample voice. Please try recording instead.');
+                useSampleVoiceButton.textContent = 'Use Sample Voice Instead';
+                useSampleVoiceButton.disabled = false;
+            }
+        });
+    }
 
     // Recording functionality
     if (recordButton) {

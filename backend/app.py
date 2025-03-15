@@ -10,7 +10,7 @@ import os
 import requests
 import json
 import datetime
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -52,6 +52,11 @@ def api_request(endpoint, method="GET", data=None, files=None):
 def index():
     """Render the profile creation page"""
     return render_template("index.html")
+
+@app.route("/backend/sample_voice.mp3")
+def sample_voice():
+    """Serve the sample voice file"""
+    return send_file(os.path.join(app.root_path, "sample_voice.mp3"))
 
 @app.route("/visitor")
 def visitor():

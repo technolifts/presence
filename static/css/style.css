@@ -482,3 +482,19 @@ nav a.active {
 .no-agents a:hover {
     text-decoration: underline;
 }
+
+/* Quick test section */
+.quick-test {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f0f7ff;
+    border-radius: 8px;
+    border-left: 4px solid #2196f3;
+}
+
+.quick-test .note {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 8px;
+    font-style: italic;
+}
