@@ -8,10 +8,11 @@ It helps diagnose issues with audio file compatibility.
 
 import os
 import sys
-from elevenlabs import clone, play
+from elevenlabs import play
 from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 import argparse
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
@@ -46,13 +47,58 @@ def test_voice_cloning(file_path, voice_name="Test Voice", description="Test voi
     # Try to clone voice
     try:
         print(f"Attempting to clone voice from {file_path}...")
-        voice = client.voices.add(
-            name=voice_name,
-            description=description,
-            files=[file_path],
-        )
-        print(f"Success! Voice ID: {voice.voice_id}")
-        return voice.voice_id
+        
+        # Check if file is readable
+        try:
+            with open(file_path, 'rb') as f:
+                # Read a small portion to verify it's accessible
+                f.read(1024)
+                f.seek(0)
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return None
+        
+        # Try using the client's voices.add method
+        try:
+            voice = client.voices.add(
+                name=voice_name,
+                description=description,
+                files=[file_path],
+            )
+            print(f"Success! Voice ID: {voice.voice_id}")
+            return voice.voice_id
+        except Exception as e:
+            print(f"Error with client.voices.add: {e}")
+            
+            # Fall back to direct API call if the client method fails
+            print("Trying direct API call...")
+            url = "https://api.elevenlabs.io/v1/voices/add"
+            
+            headers = {
+                "Accept": "application/json",
+                "xi-api-key": ELEVENLABS_API_KEY
+            }
+            
+            data = {
+                "name": voice_name,
+                "description": description
+            }
+            
+            with open(file_path, 'rb') as f:
+                files = [
+                    ('files', (os.path.basename(file_path), f, 'audio/mpeg'))
+                ]
+                
+                response = requests.post(url, headers=headers, data=data, files=files)
+                
+                if response.status_code == 200:
+                    voice_id = response.json().get("voice_id")
+                    print(f"Success with direct API call! Voice ID: {voice_id}")
+                    return voice_id
+                else:
+                    print(f"Direct API call failed: {response.status_code}")
+                    print(f"Response: {response.text}")
+                    return None
     except Exception as e:
         print(f"Error: {e}")
         return None
