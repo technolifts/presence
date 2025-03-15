@@ -1,0 +1,261 @@
+/* Base styles */
+:root {
+    --primary-color: #4a6bff;
+    --primary-dark: #3a56cc;
+    --secondary-color: #ff6b6b;
+    --text-color: #333;
+    --light-gray: #f5f5f5;
+    --medium-gray: #e0e0e0;
+    --dark-gray: #888;
+    --success-color: #4caf50;
+    --error-color: #f44336;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: #f9f9f9;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+h1, h2, h3 {
+    margin-bottom: 1rem;
+    color: #222;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--medium-gray);
+}
+
+header h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+}
+
+/* Main sections */
+section {
+    background-color: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--box-shadow);
+}
+
+.tip {
+    background-color: #e8f4fd;
+    padding: 0.75rem;
+    border-left: 4px solid #2196f3;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+/* Form elements */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--medium-gray);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary-btn:hover:not(:disabled) {
+    background-color: var(--primary-dark);
+}
+
+.secondary-btn {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background-color: #e55c5c;
+}
+
+.record-btn {
+    background-color: white;
+    color: var(--text-color);
+    border: 1px solid var(--medium-gray);
+    padding: 0.75rem 1.5rem;
+}
+
+.record-btn.recording {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+.record-icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--secondary-color);
+    margin-right: 8px;
+}
+
+.recording .record-icon {
+    background-color: white;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Recorder */
+.recorder-container {
+    margin-top: 1.5rem;
+}
+
+.recorder-controls {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timer {
+    margin-left: 1rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    font-family: monospace;
+}
+
+.audio-visualizer {
+    width: 100%;
+    height: 100px;
+    background-color: var(--light-gray);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+#visualizer {
+    width: 100%;
+    height: 100%;
+}
+
+.audio-player, .test-audio-player {
+    margin-top: 1rem;
+}
+
+audio {
+    width: 100%;
+}
+
+/* Status and results */
+.status-container, .result-container {
+    margin-top: 2rem;
+}
+
+.loader {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.voice-info {
+    background-color: var(--light-gray);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+}
+
+.try-voice-section {
+    margin-top: 2rem;
+}
+
+#testText {
+    margin-bottom: 1rem;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--medium-gray);
+    color: var(--dark-gray);
+    font-size: 0.9rem;
+}

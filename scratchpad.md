@@ -105,3 +105,25 @@ We need to expose our voice processing functionality as API endpoints to support
 - File size and type validation
 - Rate limiting to prevent abuse
 - Secure storage of API keys and user data
+
+## Flask UI Implementation
+
+### User Interface
+We've created a simple Flask web application that provides:
+- A voice recording interface with visualization
+- Voice cloning functionality
+- Text-to-speech testing with the cloned voice
+
+### Components
+- **Flask Web App**: Serves the UI and communicates with the API
+- **Recording Interface**: Uses the MediaRecorder API to capture audio
+- **Audio Visualization**: Displays a waveform of the recording
+- **Voice Cloning Form**: Submits the recording to create a voice clone
+- **Text-to-Speech Testing**: Tests the cloned voice with custom text
+
+### Architecture
+1. The Flask app serves as a client to the Voice Processing API
+2. Audio recording happens in the browser using JavaScript
+3. The recorded audio is sent to the API for voice cloning
+4. The cloned voice ID is stored in the session
+5. Text-to-speech requests use the cloned voice ID

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Cloning UI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Voice Cloning UI</h1>
+            <p>Record your voice and create a digital clone</p>
+        </header>
+
+        <main>
+            <section class="recording-section">
+                <h2>Record Your Voice</h2>
+                <p>Record a sample of your voice to create a voice clone.</p>
+                <p class="tip">Tip: For best results, speak clearly for at least 30 seconds in a quiet environment.</p>
+                
+                <div class="recorder-container">
+                    <div class="recorder-controls">
+                        <button id="recordButton" class="btn record-btn">
+                            <span class="record-icon"></span>
+                            Start Recording
+                        </button>
+                        <div id="recordingTimer" class="timer">00:00</div>
+                    </div>
+                    
+                    <div class="audio-visualizer">
+                        <canvas id="visualizer"></canvas>
+                    </div>
+                    
+                    <div class="audio-player" style="display: none;">
+                        <audio id="recordedAudio" controls></audio>
+                    </div>
+                </div>
+            </section>
+
+            <section class="voice-clone-section">
+                <h2>Create Voice Clone</h2>
+                <form id="voiceCloneForm">
+                    <div class="form-group">
+                        <label for="voiceName">Voice Name:</label>
+                        <input type="text" id="voiceName" name="voiceName" required placeholder="My Voice Clone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="voiceDescription">Description (optional):</label>
+                        <textarea id="voiceDescription" name="voiceDescription" placeholder="A brief description of this voice"></textarea>
+                    </div>
+                    
+                    <button type="submit" id="createVoiceButton" class="btn primary-btn" disabled>
+                        Create Voice Clone
+                    </button>
+                </form>
+                
+                <div id="cloneStatus" class="status-container" style="display: none;">
+                    <div class="loader"></div>
+                    <p>Creating your voice clone... This may take a minute.</p>
+                </div>
+                
+                <div id="cloneResult" class="result-container" style="display: none;">
+                    <h3>Voice Clone Created!</h3>
+                    <div class="voice-info">
+                        <p>Voice Name: <span id="resultVoiceName"></span></p>
+                        <p>Voice ID: <span id="resultVoiceId"></span></p>
+                    </div>
+                    
+                    <div class="try-voice-section">
+                        <h3>Try Your Voice</h3>
+                        <textarea id="testText" placeholder="Enter text to speak with your cloned voice...">Hello, this is my cloned voice. What do you think?</textarea>
+                        <button id="speakButton" class="btn secondary-btn">Speak Text</button>
+                        <div class="test-audio-player" style="display: none;">
+                            <audio id="testAudio" controls></audio>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Voice Cloning Project</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/recorder.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
