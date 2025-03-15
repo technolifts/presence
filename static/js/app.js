@@ -85,7 +85,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Show the first question
+    // Start Interview button
+    const startInterviewBtn = document.getElementById('startInterviewBtn');
+    const interviewStart = document.getElementById('interviewStart');
+    
+    if (startInterviewBtn) {
+        startInterviewBtn.addEventListener('click', () => {
+            // Hide the start interview section
+            if (interviewStart) {
+                interviewStart.style.display = 'none';
+            }
+            
+            // Show the first question
+            showQuestion(0);
+        });
+    }
+    
+    // Show the question and prepare for recording
     function showQuestion(index) {
         if (index >= questions.length) {
             // All questions answered, combine audio and finish
@@ -316,8 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Initialize with first question
-    showQuestion(0);
+    // Don't initialize with first question - wait for Start Interview button
+    // The interview will start when the user clicks the Start Interview button
 
     // Voice cloning form submission
     if (voiceCloneForm) {

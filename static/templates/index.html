@@ -47,13 +47,19 @@
                     
                     <!-- Voice Recording Section -->
                     <div class="form-section">
-                        <h3>Record Your Voice</h3>
+                        <h3>Tell Us About Yourself</h3>
                         <p class="section-description">
-                            Answer the questions below by recording your voice. This helps us create an AI voice that sounds like you.
+                            Answer a few questions to help your AI agent represent you better.
                         </p>
                         
-                        <!-- Question Display -->
-                        <div id="questionContainer" class="question-container">
+                        <!-- Interview Start -->
+                        <div id="interviewStart" class="interview-start">
+                            <p>Let's start with some questions to get to know you better. Ready to begin?</p>
+                            <button type="button" id="startInterviewBtn" class="btn primary-btn">Start Interview</button>
+                        </div>
+                        
+                        <!-- Question Display (initially hidden) -->
+                        <div id="questionContainer" class="question-container" style="display: none;">
                             <p id="questionText" class="question-text">Loading question...</p>
                             <div class="question-controls">
                                 <button type="button" id="nextQuestionBtn" class="btn secondary-btn">Next Question</button>
