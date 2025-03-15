@@ -57,7 +57,7 @@ def index():
 @app.route("/backend/sample_voice.mp3")
 def sample_voice():
     """Serve the sample voice file"""
-    return send_file(os.path.join(app.root_path, "sample_voice.mp3"))
+    return send_file(os.path.join(app.root_path, "ra_voice.mp3"))
 
 @app.route("/visitor")
 def visitor():
