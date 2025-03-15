@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your AI Voice Agent</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Create Your AI Voice Agent</h1>
+            <p class="subtitle">Record your voice and create an AI agent that sounds like you</p>
+        </div>
+    </header>
+    
+    <main class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>Create Your AI Voice Profile</h2>
+            </div>
+            
+            <div class="card-body">
+                <form id="voiceCloneForm">
+                    <!-- Hidden fields for voice API -->
+                    <input type="hidden" id="voiceName" name="voiceName">
+                    <input type="hidden" id="voiceDescription" name="voiceDescription">
+                    
+                    <!-- Profile Information -->
+                    <div class="form-section">
+                        <h3>Basic Information</h3>
+                        <div class="form-group">
+                            <label for="profileName">Your Name</label>
+                            <input type="text" id="profileName" name="profileName" placeholder="Enter your name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="profileTitle">Professional Title (Optional)</label>
+                            <input type="text" id="profileTitle" name="profileTitle" placeholder="e.g., Software Engineer, Doctor, Teacher">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="profileBio">Short Bio (Optional)</label>
+                            <textarea id="profileBio" name="profileBio" rows="3" placeholder="Tell us a bit about yourself, your expertise, or your interests"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Voice Recording Section -->
+                    <div class="form-section">
+                        <h3>Record Your Voice</h3>
+                        <p class="section-description">
+                            Answer the questions below by recording your voice. This helps us create an AI voice that sounds like you.
+                        </p>
+                        
+                        <!-- Question Display -->
+                        <div id="questionContainer" class="question-container">
+                            <p id="questionText" class="question-text">Loading question...</p>
+                            <div class="question-controls">
+                                <button type="button" id="nextQuestionBtn" class="btn secondary-btn">Next Question</button>
+                                <button type="button" id="finishRecordingBtn" class="btn primary-btn" style="display: none;">Finish Recording</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recording Controls -->
+                        <div class="recording-controls">
+                            <button type="button" id="recordButton" class="btn record-btn">
+                                <span class="record-icon"></span>Record Answer
+                            </button>
+                            
+                            <div id="visualizer-container">
+                                <canvas id="visualizer"></canvas>
+                                <div id="recordingTimer" class="recording-timer">00:00</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Audio Player -->
+                        <div class="audio-player" style="display: none;">
+                            <audio id="recordedAudio" controls></audio>
+                        </div>
+                    </div>
+                    
+                    <!-- Document Upload Section -->
+                    <div class="form-section">
+                        <h3>Upload Documents (Optional)</h3>
+                        <p class="section-description">
+                            Upload documents to give your AI agent knowledge about specific topics.
+                        </p>
+                        
+                        <form id="documentUploadForm">
+                            <div class="form-group">
+                                <label for="documentFile">Select Document</label>
+                                <input type="file" id="documentFile" name="documentFile" accept=".pdf,.docx,.txt,.md">
+                                <button type="submit" id="uploadDocumentButton" class="btn secondary-btn">Upload Document</button>
+                            </div>
+                        </form>
+                        
+                        <div id="documentStatus" class="status-message" style="display: none;">
+                            <div class="loader"></div>
+                            <p>Uploading document...</p>
+                        </div>
+                        
+                        <div id="documentsContainer" class="documents-container">
+                            <p class="no-documents">No documents uploaded yet.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="form-actions">
+                        <button type="submit" id="createVoiceButton" class="btn primary-btn" disabled>Create AI Agent</button>
+                    </div>
+                    
+                    <!-- Status Messages -->
+                    <div id="cloneStatus" class="status-message" style="display: none;">
+                        <div class="loader"></div>
+                        <p>Creating your AI agent... This may take a minute.</p>
+                    </div>
+                </form>
+                
+                <!-- Result Section -->
+                <div id="cloneResult" class="result-section" style="display: none;">
+                    <h3>Your AI Agent is Ready!</h3>
+                    <p>Congratulations! Your AI agent <strong id="resultAgentName"></strong> has been created successfully.</p>
+                    
+                    <div class="result-details">
+                        <p>Voice ID: <span id="resultVoiceId" class="voice-id"></span></p>
+                    </div>
+                    
+                    <div class="share-section">
+                        <h4>Share Your AI Agent</h4>
+                        <div class="share-link-container">
+                            <input type="text" id="shareLink" readonly>
+                            <button id="copyLink" class="btn secondary-btn">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>Test Your AI Voice</h4>
+                        <div class="form-group">
+                            <label for="testText">Enter text to speak</label>
+                            <textarea id="testText" rows="3" placeholder="Type something for your AI to say..."></textarea>
+                            <button id="speakButton" class="btn secondary-btn">Speak Text</button>
+                        </div>
+                        
+                        <div class="test-audio-player" style="display: none;">
+                            <audio id="testAudio" controls></audio>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 AI Voice Agent Creator</p>
+        </div>
+    </footer>
+    
+    <!-- Scripts -->
+    <script src="/static/js/recorder.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
