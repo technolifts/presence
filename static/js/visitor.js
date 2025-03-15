@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a message element for the streaming response
             const responseMessage = document.createElement('div');
             responseMessage.className = 'message agent';
-            responseMessage.innerHTML = '<p></p>';
+            responseMessage.innerHTML = '<p></p><div class="typing-indicator"><span></span><span></span><span></span></div>';
             
             // Start the stream
             const response = await fetch('/chat', {
@@ -124,24 +124,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 const decoder = new TextDecoder();
                 
                 // Process the stream
+                let buffer = '';
+                                
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
+                                    
+                    // Decode the chunk and add to buffer
+                    buffer += decoder.decode(value, { stream: true });
+                                    
+                    console.log("Received buffer:", buffer.length > 100 ? buffer.substring(0, 100) + "..." : buffer); // Debug log
+                                    
+                    // Process complete events in the buffer
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
                     
-                    // Decode the chunk
-                    const chunk = decoder.decode(value);
-                    
-                    // Process each event in the chunk
-                    const events = chunk.split('\n\n');
-                    for (const event of events) {
-                        if (event.startsWith('data: ')) {
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
                             try {
-                                const data = JSON.parse(event.substring(6));
+                                const dataStr = line.substring(6);
+                                console.log("Data string:", dataStr); // Debug log
+                                
+                                const data = JSON.parse(dataStr);
+                                console.log("Parsed data:", data); // Debug log
                                 
                                 // If this is a text chunk, add it to the response
                                 if (data.chunk) {
+                                    // Hide typing indicator on first chunk
+                                    if (fullResponse === '') {
+                                        const typingIndicator = responseMessage.querySelector('.typing-indicator');
+                                        if (typingIndicator) {
+                                            typingIndicator.style.display = 'none';
+                                        }
+                                    }
+                                    
                                     fullResponse += data.chunk;
                                     responseParagraph.textContent = fullResponse;
+                                    
+                                    // Add visual streaming effect
+                                    responseMessage.classList.add('streaming');
                                     
                                     // Scroll to bottom
                                     messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -149,56 +170,128 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
-                                    // Play the audio response
-                                    playAudioResponse(fullResponse, agentId, responseMessage);
+                                    console.log("Stream complete, full response:", fullResponse); // Debug log
+                                    
+                                    // Remove streaming effect
+                                    responseMessage.classList.remove('streaming');
+                                    
+                                    // Check if we have a valid response
+                                    if (fullResponse && fullResponse.trim()) {
+                                        // Check if the response is the fallback error message
+                                        if (fullResponse.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                                            // Don't try to play audio for the fallback message
+                                            console.log("Received fallback error message, not playing audio");
+                                            responseParagraph.textContent = fullResponse;
+                                        } else {
+                                            // Stop any currently playing audio before starting a new one
+                                            if (currentlyPlayingAudio) {
+                                                currentlyPlayingAudio.pause();
+                                                currentlyPlayingAudio.currentTime = 0;
+                                                currentlyPlayingAudio = null;
+                                            }
+                                            // Play the audio response for normal responses
+                                            playAudioResponse(fullResponse, agentId, responseMessage);
+                                        }
+                                    } else {
+                                        // Handle empty response
+                                        responseParagraph.textContent = "I'm sorry, I couldn't generate a response. Please try again.";
+                                    }
                                 }
                             } catch (e) {
-                                console.error('Error parsing event data:', e);
+                                console.error('Error parsing event data:', e, 'Raw data:', line.substring(6));
                             }
                         }
                     }
                 }
             } else if (response.ok) {
-                // Fallback to non-streaming response (audio blob)
+                // Fallback to non-streaming response
                 messageContainer.removeChild(typingIndicator);
                 
-                const audioBlob = await response.blob();
-                
-                // Create a placeholder for the agent's response
-                responseMessage.innerHTML = '<p>Response loading...</p>';
-                messageContainer.appendChild(responseMessage);
-                
-                // Create audio element
-                const audio = new Audio(URL.createObjectURL(audioBlob));
-                
-                // Add audio to the message
-                const audioElement = document.createElement('audio');
-                audioElement.controls = true;
-                audioElement.src = URL.createObjectURL(audioBlob);
-                responseMessage.appendChild(audioElement);
-                
-                // Add event listener for when audio starts playing
-                audio.addEventListener('play', () => {
-                    responseMessage.classList.add('playing');
-                });
-                
-                // Add event listener for when audio ends
-                audio.addEventListener('ended', () => {
-                    responseMessage.classList.remove('playing');
-                });
-                
-                // Play audio
-                audio.play();
-                
-                // Get the text transcript (if available)
                 try {
-                    const textResponse = await fetch('/last-response-text');
-                    if (textResponse.ok) {
-                        const textData = await textResponse.json();
-                        responseMessage.querySelector('p').textContent = textData.text;
+                    // Try to parse as JSON first (new format)
+                    const jsonResponse = await response.json();
+                    console.log("Received JSON response:", jsonResponse);
+                    
+                    if (jsonResponse.text) {
+                        // Display the text response
+                        responseMessage.innerHTML = `<p>${jsonResponse.text}</p>`;
+                        messageContainer.appendChild(responseMessage);
+                        
+                        // Play the audio response
+                        playAudioResponse(jsonResponse.text, agentId, responseMessage);
+                    } else {
+                        throw new Error("No text in response");
                     }
-                } catch (error) {
-                    console.error('Error getting response text:', error);
+                } catch (jsonError) {
+                    console.error("Error parsing JSON response:", jsonError);
+                    
+                    // Fallback to audio blob (old format)
+                    try {
+                        // Reset the response to get the blob
+                        const blobResponse = await fetch('/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message: "Please introduce yourself briefly",
+                                agent_id: agentId,
+                                streaming: false
+                            })
+                        });
+                        
+                        const audioBlob = await blobResponse.blob();
+                        
+                        // Create a placeholder for the agent's response
+                        responseMessage.innerHTML = '<p>Response loading...</p>';
+                        messageContainer.appendChild(responseMessage);
+                        
+                        // Create audio element
+                        const audioElement = document.createElement('audio');
+                        audioElement.controls = true;
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioElement.src = audioUrl;
+                        responseMessage.appendChild(audioElement);
+                        
+                        // Add event listeners for the audio element
+                        audioElement.addEventListener('play', () => {
+                            // Stop any currently playing audio
+                            if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                                currentlyPlayingAudio.pause();
+                                currentlyPlayingAudio.currentTime = 0;
+                            }
+                            // Update the currently playing audio reference
+                            currentlyPlayingAudio = audioElement;
+                            responseMessage.classList.add('playing');
+                        });
+                        
+                        audioElement.addEventListener('ended', () => {
+                            responseMessage.classList.remove('playing');
+                            if (currentlyPlayingAudio === audioElement) {
+                                currentlyPlayingAudio = null;
+                            }
+                        });
+                        
+                        // Play audio
+                        audioElement.play().catch(e => {
+                            console.error('Error auto-playing audio:', e);
+                        });
+                        
+                        // Get the text transcript (if available)
+                        try {
+                            const textResponse = await fetch('/last-response-text');
+                            if (textResponse.ok) {
+                                const textData = await textResponse.json();
+                                responseMessage.querySelector('p').textContent = textData.text;
+                            }
+                        } catch (error) {
+                            console.error('Error getting response text:', error);
+                        }
+                    } catch (blobError) {
+                        console.error("Error getting blob response:", blobError);
+                        responseMessage.innerHTML = '<p>Error loading response</p>';
+                        messageContainer.appendChild(responseMessage);
+                    }
                 }
             } else {
                 // Remove typing indicator
@@ -251,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a message element for the streaming response
             const responseMessage = document.createElement('div');
             responseMessage.className = 'message agent';
-            responseMessage.innerHTML = '<p></p>';
+            responseMessage.innerHTML = '<p></p><div class="typing-indicator"><span></span><span></span><span></span></div>';
             
             // Start the stream
             const response = await fetch('/chat', {
@@ -278,24 +371,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const decoder = new TextDecoder();
                 
                 // Process the stream
+                let buffer = '';
+                
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     
-                    // Decode the chunk
-                    const chunk = decoder.decode(value);
+                    // Decode the chunk and add to buffer
+                    buffer += decoder.decode(value, { stream: true });
                     
-                    // Process each event in the chunk
-                    const events = chunk.split('\n\n');
+                    console.log("Received buffer:", buffer.length > 100 ? buffer.substring(0, 100) + "..." : buffer); // Debug log
+                    
+                    // Process complete events in the buffer
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop() || ''; // Keep the last incomplete chunk in the buffer
                     for (const event of events) {
                         if (event.startsWith('data: ')) {
                             try {
-                                const data = JSON.parse(event.substring(6));
+                                const dataStr = event.substring(6);
+                                console.log("Data string:", dataStr); // Debug log
+                                
+                                const data = JSON.parse(dataStr);
+                                console.log("Parsed data:", data); // Debug log
                                 
                                 // If this is a text chunk, add it to the response
                                 if (data.chunk) {
+                                    // Hide typing indicator on first chunk
+                                    if (fullResponse === '') {
+                                        const typingIndicator = responseMessage.querySelector('.typing-indicator');
+                                        if (typingIndicator) {
+                                            typingIndicator.style.display = 'none';
+                                        }
+                                    }
+                                    
                                     fullResponse += data.chunk;
                                     responseParagraph.textContent = fullResponse;
+                                    
+                                    // Add visual streaming effect
+                                    responseMessage.classList.add('streaming');
                                     
                                     // Scroll to bottom
                                     messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -303,56 +416,128 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
-                                    // Play the audio response
-                                    playAudioResponse(fullResponse, selectedAgentId, responseMessage);
+                                    console.log("Stream complete, full response:", fullResponse); // Debug log
+                                    
+                                    // Remove streaming effect
+                                    responseMessage.classList.remove('streaming');
+                                    
+                                    // Check if we have a valid response
+                                    if (fullResponse && fullResponse.trim()) {
+                                        // Check if the response is the fallback error message
+                                        if (fullResponse.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                                            // Don't try to play audio for the fallback message
+                                            console.log("Received fallback error message, not playing audio");
+                                            responseParagraph.textContent = fullResponse;
+                                        } else {
+                                            // Stop any currently playing audio before starting a new one
+                                            if (currentlyPlayingAudio) {
+                                                currentlyPlayingAudio.pause();
+                                                currentlyPlayingAudio.currentTime = 0;
+                                                currentlyPlayingAudio = null;
+                                            }
+                                            // Play the audio response
+                                            playAudioResponse(fullResponse, selectedAgentId, responseMessage);
+                                        }
+                                    } else {
+                                        // Handle empty response
+                                        responseParagraph.textContent = "I'm sorry, I couldn't generate a response. Please try again.";
+                                    }
                                 }
                             } catch (e) {
-                                console.error('Error parsing event data:', e);
+                                console.error('Error parsing event data:', e, 'Raw event:', event);
                             }
                         }
                     }
                 }
             } else if (response.ok) {
-                // Fallback to non-streaming response (audio blob)
+                // Fallback to non-streaming response
                 messageContainer.removeChild(typingIndicator);
                 
-                const audioBlob = await response.blob();
-                
-                // Create a placeholder for the agent's response
-                responseMessage.innerHTML = '<p>Response loading...</p>';
-                messageContainer.appendChild(responseMessage);
-                
-                // Create audio element
-                const audio = new Audio(URL.createObjectURL(audioBlob));
-                
-                // Add audio to the message
-                const audioElement = document.createElement('audio');
-                audioElement.controls = true;
-                audioElement.src = URL.createObjectURL(audioBlob);
-                responseMessage.appendChild(audioElement);
-                
-                // Add event listener for when audio starts playing
-                audio.addEventListener('play', () => {
-                    responseMessage.classList.add('playing');
-                });
-                
-                // Add event listener for when audio ends
-                audio.addEventListener('ended', () => {
-                    responseMessage.classList.remove('playing');
-                });
-                
-                // Play audio
-                audio.play();
-                
-                // Get the text transcript (if available)
                 try {
-                    const textResponse = await fetch('/last-response-text');
-                    if (textResponse.ok) {
-                        const textData = await textResponse.json();
-                        responseMessage.querySelector('p').textContent = textData.text;
+                    // Try to parse as JSON first (new format)
+                    const jsonResponse = await response.json();
+                    console.log("Received JSON response:", jsonResponse);
+                    
+                    if (jsonResponse.text) {
+                        // Display the text response
+                        responseMessage.innerHTML = `<p>${jsonResponse.text}</p>`;
+                        messageContainer.appendChild(responseMessage);
+                        
+                        // Play the audio response
+                        playAudioResponse(jsonResponse.text, selectedAgentId, responseMessage);
+                    } else {
+                        throw new Error("No text in response");
                     }
-                } catch (error) {
-                    console.error('Error getting response text:', error);
+                } catch (jsonError) {
+                    console.error("Error parsing JSON response:", jsonError);
+                    
+                    // Fallback to audio blob (old format)
+                    try {
+                        // Reset the response to get the blob
+                        const blobResponse = await fetch('/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message: message,
+                                agent_id: selectedAgentId,
+                                streaming: false
+                            })
+                        });
+                        
+                        const audioBlob = await blobResponse.blob();
+                        
+                        // Create a placeholder for the agent's response
+                        responseMessage.innerHTML = '<p>Response loading...</p>';
+                        messageContainer.appendChild(responseMessage);
+                        
+                        // Create audio element
+                        const audioElement = document.createElement('audio');
+                        audioElement.controls = true;
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioElement.src = audioUrl;
+                        responseMessage.appendChild(audioElement);
+                        
+                        // Add event listeners for the audio element
+                        audioElement.addEventListener('play', () => {
+                            // Stop any currently playing audio
+                            if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                                currentlyPlayingAudio.pause();
+                                currentlyPlayingAudio.currentTime = 0;
+                            }
+                            // Update the currently playing audio reference
+                            currentlyPlayingAudio = audioElement;
+                            responseMessage.classList.add('playing');
+                        });
+                        
+                        audioElement.addEventListener('ended', () => {
+                            responseMessage.classList.remove('playing');
+                            if (currentlyPlayingAudio === audioElement) {
+                                currentlyPlayingAudio = null;
+                            }
+                        });
+                        
+                        // Play audio
+                        audioElement.play().catch(e => {
+                            console.error('Error auto-playing audio:', e);
+                        });
+                        
+                        // Get the text transcript (if available)
+                        try {
+                            const textResponse = await fetch('/last-response-text');
+                            if (textResponse.ok) {
+                                const textData = await textResponse.json();
+                                responseMessage.querySelector('p').textContent = textData.text;
+                            }
+                        } catch (error) {
+                            console.error('Error getting response text:', error);
+                        }
+                    } catch (blobError) {
+                        console.error("Error getting blob response:", blobError);
+                        responseMessage.innerHTML = '<p>Error loading response</p>';
+                        messageContainer.appendChild(responseMessage);
+                    }
                 }
             } else {
                 // Remove typing indicator
@@ -395,8 +580,29 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
     
+    // Global variable to track currently playing audio
+    let currentlyPlayingAudio = null;
+    
     async function playAudioResponse(text, agentId, messageElement) {
         try {
+            // Check if text is empty or is the fallback error message
+            if (!text || !text.trim()) {
+                console.error('Empty text provided to playAudioResponse');
+                return;
+            }
+            
+            // Check if the text is the fallback error message
+            if (text.trim() === "I'm sorry, I couldn't generate a response at this time. Please try again.") {
+                console.error('Fallback error message provided to playAudioResponse');
+                return;
+            }
+            
+            // Add a loading indicator
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'audio-loading';
+            loadingIndicator.textContent = 'Generating audio...';
+            messageElement.appendChild(loadingIndicator);
+            
             // Request TTS for the complete response
             const response = await fetch('/stream-tts', {
                 method: 'POST',
@@ -410,35 +616,61 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to generate speech');
+                throw new Error(`Failed to generate speech: ${response.status} ${response.statusText}`);
             }
             
             // Get the audio blob
             const audioBlob = await response.blob();
             
-            // Create audio element
-            const audio = new Audio(URL.createObjectURL(audioBlob));
+            // Remove loading indicator
+            messageElement.removeChild(loadingIndicator);
             
-            // Add audio to the message
+            // Create audio element with controls
             const audioElement = document.createElement('audio');
             audioElement.controls = true;
-            audioElement.src = URL.createObjectURL(audioBlob);
-            messageElement.appendChild(audioElement);
+            const audioUrl = URL.createObjectURL(audioBlob);
+            audioElement.src = audioUrl;
             
-            // Add event listener for when audio starts playing
-            audio.addEventListener('play', () => {
+            // Add event listeners for the audio element
+            audioElement.addEventListener('play', () => {
+                // Stop any currently playing audio
+                if (currentlyPlayingAudio && currentlyPlayingAudio !== audioElement) {
+                    currentlyPlayingAudio.pause();
+                    currentlyPlayingAudio.currentTime = 0;
+                }
+                // Update the currently playing audio reference
+                currentlyPlayingAudio = audioElement;
                 messageElement.classList.add('playing');
             });
             
-            // Add event listener for when audio ends
-            audio.addEventListener('ended', () => {
+            audioElement.addEventListener('ended', () => {
                 messageElement.classList.remove('playing');
+                if (currentlyPlayingAudio === audioElement) {
+                    currentlyPlayingAudio = null;
+                }
             });
             
-            // Play audio
-            audio.play();
+            // Add the audio element to the message
+            messageElement.appendChild(audioElement);
+            
+            // Auto-play the audio (using the same element, not a separate Audio object)
+            audioElement.play().catch(e => {
+                console.error('Error auto-playing audio:', e);
+                // Add a play button as fallback
+                const playButton = document.createElement('button');
+                playButton.className = 'play-audio-btn';
+                playButton.textContent = 'Play Response';
+                playButton.onclick = () => audioElement.play();
+                messageElement.appendChild(playButton);
+            });
         } catch (error) {
             console.error('Error playing audio response:', error);
+            // Add error message to the UI
+            const errorElement = document.createElement('div');
+            errorElement.className = 'audio-error';
+            errorElement.textContent = 'Could not generate audio. Click to retry.';
+            errorElement.onclick = () => playAudioResponse(text, agentId, messageElement);
+            messageElement.appendChild(errorElement);
         }
     }
     
