@@ -116,7 +116,8 @@ def convert_and_check(file_path):
             print("File is still too large for ElevenLabs (>10MB). Creating a shorter version...")
             # Create a shorter version (first 5 minutes or less)
             short_mp3 = os.path.splitext(file_path)[0] + "_short.mp3"
-            duration_seconds = min(300, len(audio) / 1000)  # 5 minutes max
+            # Use a fixed duration of 5 minutes (300 seconds) for the shorter version
+            duration_seconds = 300  # 5 minutes max
             subprocess.run(
                 ["ffmpeg", "-y", "-i", fixed_mp3, "-t", str(duration_seconds), 
                  "-ar", "44100", "-ac", "1", "-b:a", "96k", short_mp3],
