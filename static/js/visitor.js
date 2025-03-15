@@ -100,8 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show typing indicator
         const typingIndicator = document.createElement('div');
         typingIndicator.className = 'message agent typing';
-        typingIndicator.innerHTML = '<p>Typing...</p>';
+        typingIndicator.innerHTML = '<p>Thinking...</p>';
         messageContainer.appendChild(typingIndicator);
+        
+        // Disable send button during processing
+        sendButton.disabled = true;
         
         // Scroll to bottom
         messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -140,6 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioElement.src = URL.createObjectURL(audioBlob);
                 responseMessage.appendChild(audioElement);
                 
+                // Add event listener for when audio starts playing
+                audio.addEventListener('play', () => {
+                    responseMessage.classList.add('playing');
+                });
+                
+                // Add event listener for when audio ends
+                audio.addEventListener('ended', () => {
+                    responseMessage.classList.remove('playing');
+                });
+                
                 // Play audio
                 audio.play();
                 
@@ -154,16 +167,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error getting response text:', error);
                 }
             } else {
-                const errorData = await response.json();
-                addMessage(`Error: ${errorData.error || 'Something went wrong'}`, 'error');
+                let errorMessage = 'Something went wrong';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // If response is not JSON
+                    errorMessage = `Error: ${response.status} ${response.statusText}`;
+                }
+                addMessage(`Error: ${errorMessage}`, 'error');
             }
         } catch (error) {
             console.error('Error sending message:', error);
             addMessage('Error: Could not connect to the server', 'error');
+        } finally {
+            // Re-enable send button
+            sendButton.disabled = false;
+            
+            // Scroll to bottom
+            messageContainer.scrollTop = messageContainer.scrollHeight;
         }
-        
-        // Scroll to bottom
-        messageContainer.scrollTop = messageContainer.scrollHeight;
     }
     
     function addMessage(text, type) {
@@ -177,7 +200,97 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function toggleVoiceInput() {
-        // This would be implemented with the Web Speech API
-        alert('Voice input feature coming soon!');
+        // Check if browser supports speech recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Your browser does not support speech recognition. Try using Chrome or Edge.');
+            return;
+        }
+        
+        // Create speech recognition object
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        // Configure
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        // UI updates
+        micButton.classList.add('recording');
+        micButton.innerHTML = '<span class="mic-icon"></span> Listening...';
+        
+        // Create or get input placeholder
+        let voiceInputPlaceholder = document.getElementById('voiceInputPlaceholder');
+        if (!voiceInputPlaceholder) {
+            voiceInputPlaceholder = document.createElement('div');
+            voiceInputPlaceholder.id = 'voiceInputPlaceholder';
+            voiceInputPlaceholder.className = 'voice-input-placeholder';
+            voiceInputPlaceholder.textContent = 'Listening...';
+            document.querySelector('.input-container').insertBefore(voiceInputPlaceholder, userMessage);
+        } else {
+            voiceInputPlaceholder.style.display = 'block';
+            voiceInputPlaceholder.textContent = 'Listening...';
+        }
+        
+        // Start listening
+        recognition.start();
+        
+        // Results handler
+        let finalTranscript = '';
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            
+            // Update placeholder with interim results
+            voiceInputPlaceholder.textContent = interimTranscript || 'Listening...';
+        };
+        
+        // End handler
+        recognition.onend = () => {
+            // Reset UI
+            micButton.classList.remove('recording');
+            micButton.innerHTML = '<span class="mic-icon"></span>';
+            
+            // Hide placeholder
+            if (voiceInputPlaceholder) {
+                voiceInputPlaceholder.style.display = 'none';
+            }
+            
+            // If we got a final transcript, add it to the input
+            if (finalTranscript) {
+                userMessage.value = finalTranscript;
+                userMessage.focus();
+            }
+        };
+        
+        // Error handler
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            
+            // Reset UI
+            micButton.classList.remove('recording');
+            micButton.innerHTML = '<span class="mic-icon"></span>';
+            
+            // Hide placeholder
+            if (voiceInputPlaceholder) {
+                voiceInputPlaceholder.style.display = 'none';
+            }
+            
+            // Show error
+            if (event.error === 'no-speech') {
+                alert('No speech was detected. Please try again.');
+            } else {
+                alert(`Error occurred in recognition: ${event.error}`);
+            }
+        };
     }
 });

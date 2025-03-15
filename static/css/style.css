@@ -439,6 +439,25 @@ nav a.active {
     mask-size: contain;
 }
 
+/* Voice input styles */
+.voice-input-placeholder {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-style: italic;
+    color: #666;
+    animation: pulse 1.5s infinite;
+}
+
+#micButton.recording {
+    background-color: #ff6b6b;
+}
+
+.message.playing {
+    border-left: 4px solid var(--primary-color);
+}
+
 /* Share Link */
 .share-link {
     display: flex;
