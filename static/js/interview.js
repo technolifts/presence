@@ -125,8 +125,12 @@ class VoiceInterviewSystem {
             this.showQuestion(0);
             
             // Hide start button, show response container
-            this.startInterviewBtn.parentElement.style.display = 'none';
-            this.responseContainer.style.display = 'block';
+            if (this.startInterviewBtn && this.startInterviewBtn.parentElement) {
+                this.startInterviewBtn.parentElement.style.display = 'none';
+            }
+            if (this.responseContainer) {
+                this.responseContainer.style.display = 'block';
+            }
         } catch (error) {
             console.error('Error starting interview:', error);
             alert('Error starting interview. Please try again.');
