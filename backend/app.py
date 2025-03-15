@@ -292,6 +292,7 @@ def chat():
         # If streaming is requested, handle differently
         if streaming:
             def generate():
+                nonlocal conversation_history
                 full_response = ""
                 
                 # Create a streaming response
