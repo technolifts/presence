@@ -599,46 +599,86 @@ nav a.active {
     font-style: italic;
 }
 
-/* Interview Section */
-.interview-section {
-    margin-bottom: 30px;
-}
-
-.interview-container {
-    background-color: #f9f9f9;
-    border-radius: 8px;
+/* Voice Interview Section */
+.interview-start {
+    background-color: #f5f9ff;
     padding: 20px;
-    margin-top: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 .question-container {
+    background-color: #fff;
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
     margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .question-text {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 500;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.response-container {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.recording-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.record-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    width: 200px;
+}
+
+.audio-visualizer {
+    width: 100%;
+    height: 100px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
     margin-bottom: 15px;
 }
 
-.response-container textarea {
-    width: 100%;
-    min-height: 120px;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 16px;
-    margin-bottom: 15px;
+.recording-timer {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0,0,0,0.6);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
 }
 
 .interview-controls {
     display: flex;
-    gap: 10px;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
 }
 
 .interview-progress {
-    margin-top: 20px;
+    margin: 25px 0;
 }
 
 .progress-bar {
@@ -655,8 +695,22 @@ nav a.active {
     transition: width 0.3s ease;
 }
 
+.progress-text {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+}
+
 .interview-summary {
+    background-color: #f0f7ff;
+    border-radius: 8px;
+    padding: 20px;
     margin-top: 30px;
+}
+
+.interview-summary h4 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
 }
 
 .summary-container {
@@ -686,11 +740,35 @@ nav a.active {
 .response-question {
     font-weight: 500;
     margin-bottom: 5px;
+    color: #333;
 }
 
 .response-answer {
     color: #555;
-    white-space: pre-line;
+    font-style: italic;
+}
+
+.sample-voice-option {
+    margin-top: 30px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px dashed #ccc;
+}
+
+.sample-script {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border-left: 4px solid #4a90e2;
+}
+
+.sample-script h4 {
+    margin-top: 0;
+    color: #333;
+    margin-bottom: 10px;
 }
 /* Audio loading and error indicators */
 .audio-loading {

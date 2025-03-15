@@ -45,43 +45,84 @@
                         </div>
                     </div>
                     
-                    <!-- Voice Recording Section -->
+                    <!-- Voice Interview Section -->
                     <div class="form-section">
                         <h3>Tell Us About Yourself</h3>
                         <p class="section-description">
-                            Answer a few questions to help your AI agent represent you better.
+                            Answer a few questions by voice to help your AI agent represent you better.
+                            Your voice recordings will be used to create your AI voice.
                         </p>
+                        
+                        <div class="tip">
+                            <strong>Tip:</strong> For best results, speak clearly in a quiet environment. Your voice recordings will be combined to create your AI voice.
+                        </div>
+                        
+                        <!-- Sample Script -->
+                        <div class="sample-script">
+                            <h4>Sample Script (Optional)</h4>
+                            <p>Hello, my name is [Your Name]. I'm a [Your Profession] with expertise in [Your Areas of Expertise]. I'm passionate about [Your Interests]. In my free time, I enjoy [Your Hobbies]. I'm creating this AI voice agent to help answer questions about my work, experience, or opinions on relevant topics.</p>
+                        </div>
                         
                         <!-- Interview Start -->
                         <div id="interviewStart" class="interview-start">
                             <p>Let's start with some questions to get to know you better. Ready to begin?</p>
-                            <button type="button" id="startInterviewBtn" class="btn primary-btn">Start Interview</button>
+                            <button type="button" id="startInterviewBtn" class="btn primary-btn">Start Voice Interview</button>
                         </div>
                         
                         <!-- Question Display (initially hidden) -->
                         <div id="questionContainer" class="question-container" style="display: none;">
-                            <p id="questionText" class="question-text">Loading question...</p>
-                            <div class="question-controls">
-                                <button type="button" id="nextQuestionBtn" class="btn secondary-btn">Next Question</button>
-                                <button type="button" id="finishRecordingBtn" class="btn primary-btn" style="display: none;">Finish Recording</button>
-                            </div>
+                            <p class="question-text">Loading question...</p>
                         </div>
                         
-                        <!-- Recording Controls -->
-                        <div class="recording-controls">
-                            <button type="button" id="recordButton" class="btn record-btn">
-                                <span class="record-icon"></span>Record Answer
-                            </button>
+                        <!-- Response Container -->
+                        <div id="responseContainer" class="response-container" style="display: none;">
+                            <!-- Recording Controls -->
+                            <div class="recording-controls">
+                                <button type="button" id="recordButton" class="btn record-btn">
+                                    <span class="record-icon"></span>Record Answer
+                                </button>
+                                
+                                <div id="visualizer-container" class="audio-visualizer">
+                                    <canvas id="visualizer"></canvas>
+                                    <div id="recordingTimer" class="recording-timer">00:00</div>
+                                </div>
+                            </div>
                             
-                            <div id="visualizer-container">
-                                <canvas id="visualizer"></canvas>
-                                <div id="recordingTimer" class="recording-timer">00:00</div>
+                            <!-- Audio Player -->
+                            <div class="audio-player" style="display: none;">
+                                <audio id="recordedAudio" controls></audio>
+                            </div>
+                            
+                            <!-- Navigation Controls -->
+                            <div class="interview-controls">
+                                <button type="button" id="nextQuestionBtn" class="btn secondary-btn">Next Question</button>
+                                <button type="button" id="finishInterviewBtn" class="btn primary-btn" style="display: none;">Finish Interview</button>
                             </div>
                         </div>
                         
-                        <!-- Audio Player -->
-                        <div class="audio-player" style="display: none;">
-                            <audio id="recordedAudio" controls></audio>
+                        <!-- Interview Progress -->
+                        <div id="interviewProgress" class="interview-progress" style="display: none;">
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="progress-text">
+                                Question <span id="currentQuestionNum">1</span> of <span id="totalQuestions">5</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Interview Summary (shown after completion) -->
+                        <div id="interviewSummary" class="interview-summary" style="display: none;">
+                            <h4>Interview Complete!</h4>
+                            <p>Thank you for completing the interview. Your voice has been recorded and will be used to create your AI agent.</p>
+                            <div class="summary-container">
+                                <div id="responseSummary" class="response-summary"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sample Voice Option -->
+                        <div class="sample-voice-option">
+                            <p>Don't want to record? Use our sample voice instead:</p>
+                            <button type="button" id="useSampleVoice" class="btn secondary-btn">Use Sample Voice Instead</button>
                         </div>
                     </div>
                     

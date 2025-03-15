@@ -39,17 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const recorder = new AudioRecorder(visualizerCanvas);
     let audioBlob = null;
     
-    // Interview questions
-    const questions = [
-        "Please introduce yourself and tell us your name.",
-        "What's your professional background or expertise?",
-        "What topics are you knowledgeable about?",
-        "How would you describe your communication style?",
-        "What kind of personality would you like your AI voice to have?"
-    ];
-    let currentQuestionIndex = 0;
-    const recordedResponses = [];
-    
     // Sample voice button
     const useSampleVoiceButton = document.getElementById('useSampleVoice');
     if (useSampleVoiceButton) {
@@ -85,255 +74,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Start Interview button
-    const startInterviewBtn = document.getElementById('startInterviewBtn');
-    const interviewStart = document.getElementById('interviewStart');
-    
-    if (startInterviewBtn) {
-        startInterviewBtn.addEventListener('click', () => {
-            // Hide the start interview section
-            if (interviewStart) {
-                interviewStart.style.display = 'none';
+    // Listen for interview completion event
+    document.addEventListener('interviewComplete', (event) => {
+        // Get the combined audio blob from the interview
+        audioBlob = event.detail.audioBlob;
+        
+        // Enable the create voice button
+        createVoiceButton.disabled = false;
+        
+        // Update profile fields from responses if they're empty
+        if (event.detail.responses && event.detail.responses.length > 0 && profileName.value === '') {
+            // Try to extract name from first response if it's about name
+            const firstQuestion = event.detail.responses[0].question;
+            if (firstQuestion.toLowerCase().includes('name')) {
+                profileName.value = 'Voice User'; // Default name
             }
-            
-            // Show the first question
-            showQuestion(0);
-        });
-    }
-    
-    // Show the question and prepare for recording
-    function showQuestion(index) {
-        if (index >= questions.length) {
-            // All questions answered, combine audio and finish
-            combineAudioAndFinish();
-            return;
         }
-        
-        // Update question text
-        if (questionText) {
-            questionText.textContent = questions[index];
-        }
-        
-        // Show question container
-        if (questionContainer) {
-            questionContainer.style.display = 'block';
-        }
-        
-        // Update buttons visibility
-        if (index === questions.length - 1) {
-            if (nextQuestionBtn) nextQuestionBtn.style.display = 'none';
-            if (finishRecordingBtn) finishRecordingBtn.style.display = 'inline-flex';
-        } else {
-            if (nextQuestionBtn) nextQuestionBtn.style.display = 'inline-flex';
-            if (finishRecordingBtn) finishRecordingBtn.style.display = 'none';
-        }
-        
-        currentQuestionIndex = index;
-    }
-    
-    // Combine all recorded responses into a single audio file
-    async function combineAudioAndFinish() {
-        if (recordedResponses.length === 0) {
-            alert('No recordings found. Please record your voice first.');
-            return;
-        }
-        
-        try {
-            // Create a combined audio context
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const audioBuffers = [];
-            
-            // Load all audio blobs into audio buffers
-            for (const blob of recordedResponses) {
-                const arrayBuffer = await blob.arrayBuffer();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                audioBuffers.push(audioBuffer);
-            }
-            
-            // Calculate total duration
-            const totalDuration = audioBuffers.reduce((acc, buffer) => acc + buffer.duration, 0);
-            
-            // Create a combined buffer
-            const combinedBuffer = audioContext.createBuffer(
-                1, // mono
-                audioContext.sampleRate * totalDuration,
-                audioContext.sampleRate
-            );
-            
-            // Copy each buffer into the combined buffer
-            let offset = 0;
-            for (const buffer of audioBuffers) {
-                const channelData = buffer.getChannelData(0);
-                combinedBuffer.getChannelData(0).set(channelData, offset);
-                offset += buffer.length;
-            }
-            
-            // Convert the combined buffer to a WAV blob
-            const offlineContext = new OfflineAudioContext(
-                1, combinedBuffer.length, combinedBuffer.sampleRate
-            );
-            
-            const source = offlineContext.createBufferSource();
-            source.buffer = combinedBuffer;
-            source.connect(offlineContext.destination);
-            source.start(0);
-            
-            const renderedBuffer = await offlineContext.startRendering();
-            
-            // Convert to WAV
-            const wavBlob = await bufferToWave(renderedBuffer, renderedBuffer.length);
-            
-            // Set as the final audio blob
-            audioBlob = wavBlob;
-            
-            // Display the combined audio
-            const audioURL = URL.createObjectURL(audioBlob);
-            recordedAudio.src = audioURL;
-            audioPlayer.style.display = 'block';
-            
-            // Hide question container
-            if (questionContainer) {
-                questionContainer.style.display = 'none';
-            }
-            
-            // Enable the create voice button
-            createVoiceButton.disabled = false;
-            
-            // Update profile fields from responses if they're empty
-            if (recordedResponses.length > 0 && profileName.value === '') {
-                // Try to extract name from first response
-                const nameMatch = questions[0].includes('name');
-                if (nameMatch) {
-                    profileName.value = 'Voice User'; // Default name
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error combining audio:', error);
-            alert('Error combining audio recordings. Please try again.');
-        }
-    }
-    
-    // Convert AudioBuffer to WAV Blob
-    function bufferToWave(abuffer, len) {
-        const numOfChan = abuffer.numberOfChannels;
-        const length = len * numOfChan * 2 + 44;
-        const buffer = new ArrayBuffer(length);
-        const view = new DataView(buffer);
-        const channels = [];
-        let i;
-        let sample;
-        let offset = 0;
-        let pos = 0;
-        
-        // Write WAVE header
-        setUint32(0x46464952);                         // "RIFF"
-        setUint32(length - 8);                         // file length - 8
-        setUint32(0x45564157);                         // "WAVE"
-        
-        setUint32(0x20746d66);                         // "fmt " chunk
-        setUint32(16);                                 // length = 16
-        setUint16(1);                                  // PCM (uncompressed)
-        setUint16(numOfChan);
-        setUint32(abuffer.sampleRate);
-        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-        setUint16(numOfChan * 2);                      // block-align
-        setUint16(16);                                 // 16-bit
-        
-        setUint32(0x61746164);                         // "data" chunk
-        setUint32(length - pos - 4);                   // chunk length
-        
-        // Write interleaved data
-        for (i = 0; i < abuffer.numberOfChannels; i++) {
-            channels.push(abuffer.getChannelData(i));
-        }
-        
-        while (pos < length) {
-            for (i = 0; i < numOfChan; i++) {
-                // Clamp the value to the 16-bit range
-                sample = Math.max(-1, Math.min(1, channels[i][offset]));
-                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-                view.setInt16(pos, sample, true); // 'true' -> means little endian
-                pos += 2;
-            }
-            offset++;
-        }
-        
-        function setUint16(data) {
-            view.setUint16(pos, data, true);
-            pos += 2;
-        }
-        
-        function setUint32(data) {
-            view.setUint32(pos, data, true);
-            pos += 4;
-        }
-        
-        return new Blob([buffer], { type: 'audio/wav' });
-    }
-    
-    // Recording functionality
-    if (recordButton) {
-        recordButton.addEventListener('click', async () => {
-            if (recorder.isRecording) {
-                // Stop recording
-                recordButton.disabled = true;
-                recordButton.textContent = 'Processing...';
-                
-                const responseBlob = await recorder.stop();
-                
-                // Save this response
-                recordedResponses.push(responseBlob);
-                
-                // Update UI
-                recordButton.classList.remove('recording');
-                recordButton.innerHTML = '<span class="record-icon"></span>Record Answer';
-                recordButton.disabled = false;
-                
-                // Display the recorded audio for this response
-                const audioURL = URL.createObjectURL(responseBlob);
-                recordedAudio.src = audioURL;
-                audioPlayer.style.display = 'block';
-                
-                // Enable next question button
-                if (nextQuestionBtn) nextQuestionBtn.disabled = false;
-                if (finishRecordingBtn) finishRecordingBtn.disabled = false;
-            } else {
-                // Start recording
-                const started = await recorder.start();
-                
-                if (started) {
-                    // Update UI
-                    recordButton.classList.add('recording');
-                    recordButton.innerHTML = '<span class="record-icon"></span>Stop Recording';
-                    audioPlayer.style.display = 'none';
-                    
-                    // Disable next question button while recording
-                    if (nextQuestionBtn) nextQuestionBtn.disabled = true;
-                    if (finishRecordingBtn) finishRecordingBtn.disabled = true;
-                } else {
-                    alert('Could not access microphone. Please ensure you have granted permission.');
-                }
-            }
-        });
-    }
-    
-    // Next question button
-    if (nextQuestionBtn) {
-        nextQuestionBtn.addEventListener('click', () => {
-            showQuestion(currentQuestionIndex + 1);
-        });
-    }
-    
-    // Finish recording button
-    if (finishRecordingBtn) {
-        finishRecordingBtn.addEventListener('click', () => {
-            combineAudioAndFinish();
-        });
-    }
-    
-    // Don't initialize with first question - wait for Start Interview button
-    // The interview will start when the user clicks the Start Interview button
+    });
 
     // Voice cloning form submission
     if (voiceCloneForm) {
