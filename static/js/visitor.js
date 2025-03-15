@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a message element for the streaming response
             const responseMessage = document.createElement('div');
             responseMessage.className = 'message agent';
-            responseMessage.innerHTML = '<p></p>';
+            responseMessage.innerHTML = '<p></p><div class="typing-indicator"><span></span><span></span><span></span></div>';
             
             // Start the stream
             const response = await fetch('/chat', {
@@ -150,8 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 // If this is a text chunk, add it to the response
                                 if (data.chunk) {
+                                    // Hide typing indicator on first chunk
+                                    if (fullResponse === '') {
+                                        const typingIndicator = responseMessage.querySelector('.typing-indicator');
+                                        if (typingIndicator) {
+                                            typingIndicator.style.display = 'none';
+                                        }
+                                    }
+                                    
                                     fullResponse += data.chunk;
                                     responseParagraph.textContent = fullResponse;
+                                    
+                                    // Add visual streaming effect
+                                    responseMessage.classList.add('streaming');
                                     
                                     // Scroll to bottom
                                     messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -160,6 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
                                     console.log("Stream complete, full response:", fullResponse); // Debug log
+                                    
+                                    // Remove streaming effect
+                                    responseMessage.classList.remove('streaming');
                                     
                                     // Check if we have a valid response
                                     if (fullResponse && fullResponse.trim()) {
@@ -315,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a message element for the streaming response
             const responseMessage = document.createElement('div');
             responseMessage.className = 'message agent';
-            responseMessage.innerHTML = '<p></p>';
+            responseMessage.innerHTML = '<p></p><div class="typing-indicator"><span></span><span></span><span></span></div>';
             
             // Start the stream
             const response = await fetch('/chat', {
@@ -367,8 +381,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 // If this is a text chunk, add it to the response
                                 if (data.chunk) {
+                                    // Hide typing indicator on first chunk
+                                    if (fullResponse === '') {
+                                        const typingIndicator = responseMessage.querySelector('.typing-indicator');
+                                        if (typingIndicator) {
+                                            typingIndicator.style.display = 'none';
+                                        }
+                                    }
+                                    
                                     fullResponse += data.chunk;
                                     responseParagraph.textContent = fullResponse;
+                                    
+                                    // Add visual streaming effect
+                                    responseMessage.classList.add('streaming');
                                     
                                     // Scroll to bottom
                                     messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -377,6 +402,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // If this is the end of the stream, play the audio
                                 if (data.done) {
                                     console.log("Stream complete, full response:", fullResponse); // Debug log
+                                    
+                                    // Remove streaming effect
+                                    responseMessage.classList.remove('streaming');
                                     
                                     // Check if we have a valid response
                                     if (fullResponse && fullResponse.trim()) {
