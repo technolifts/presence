@@ -72,8 +72,8 @@ class VoiceListResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
-    voice_id: Optional[str] = None
-    voice_name: Optional[str] = None
+    voice_id: Optional[str] = "v8qylBrMZzkqn8nZJUZX"  # Default voice ID: Testing
+    voice_name: Optional[str] = "Testing"  # Default voice name
 
 # Endpoints
 @app.post("/api/transcribe", response_model=TextResponse)
@@ -181,8 +181,11 @@ async def text_to_speech(
     if not voice_processor:
         raise HTTPException(status_code=500, detail="Voice processor not initialized")
     
+    # Default values are now set in the model, so this check is just for clarity
     if not request.voice_id and not request.voice_name:
-        raise HTTPException(status_code=400, detail="Either voice_id or voice_name must be provided")
+        # Use default values from the model
+        request.voice_id = "v8qylBrMZzkqn8nZJUZX"  # Default voice ID: Testing
+        request.voice_name = "Testing"
     
     try:
         # Generate speech
@@ -227,8 +230,11 @@ async def download_tts(
     if not voice_processor:
         raise HTTPException(status_code=500, detail="Voice processor not initialized")
     
+    # Default values are now set in the model, so this check is just for clarity
     if not request.voice_id and not request.voice_name:
-        raise HTTPException(status_code=400, detail="Either voice_id or voice_name must be provided")
+        # Use default values from the model
+        request.voice_id = "v8qylBrMZzkqn8nZJUZX"  # Default voice ID: Testing
+        request.voice_name = "Testing"
     
     try:
         # Generate speech

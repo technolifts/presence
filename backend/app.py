@@ -95,10 +95,7 @@ def text_to_speech():
     if not data or "text" not in data:
         return jsonify({"error": "No text provided"}), 400
     
-    voice_id = data.get("voice_id") or session.get("last_voice_id")
-    
-    if not voice_id:
-        return jsonify({"error": "No voice ID provided or found in session"}), 400
+    voice_id = data.get("voice_id") or session.get("last_voice_id") or "v8qylBrMZzkqn8nZJUZX"  # Default: Testing
     
     payload = {
         "text": data["text"],
@@ -121,10 +118,7 @@ def download_speech():
     if not data or "text" not in data:
         return jsonify({"error": "No text provided"}), 400
     
-    voice_id = data.get("voice_id") or session.get("last_voice_id")
-    
-    if not voice_id:
-        return jsonify({"error": "No voice ID provided or found in session"}), 400
+    voice_id = data.get("voice_id") or session.get("last_voice_id") or "v8qylBrMZzkqn8nZJUZX"  # Default: Testing
     
     filename = data.get("filename", "voice_output.mp3")
     
