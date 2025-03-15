@@ -188,3 +188,6 @@ Having a lot of fun at Zilliz
 To be honest, I haven't made enough open-source contributions in my life, probably less than 25, to truly claim myself an open-source enthusiast. However, working here at Zilliz is helping me change that. As a developer advocate, I work with a lot of open-source software and have already made multiple contributions. In addition, I have the opportunity to work with some of the most cutting-edge AI technologies, such as LangChain, LlamaIndex, and AutoGPT. Aside from creating content, I host meetups and give talks at conferences and hackathons. Speaking in front of an audience is a new experience, but I find it enjoyable.
 
 Another great aspect of being a developer advocate at Zilliz is the marketing support I get. Our VP of Marketing, Chris, is a great leader who guides us without being too controlling or micromanaging. We share a mutual understanding of communicating with developers, which is essential for an advocate. Our primary objective is to provide developers with the tools and resources they need to understand, build with, and innovate using vector databases.
+
+
+Wifes name: Vicky
