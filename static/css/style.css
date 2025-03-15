@@ -394,7 +394,7 @@ audio {
 }
 
 audio::-webkit-media-controls-panel {
-    background-color: var(--primary-color);
+    background-color: var(--secondary-color);
     border-radius: 8px;
     padding: 5px;
 }
@@ -758,8 +758,8 @@ nav a.active:hover {
     margin-top: 12px;
     width: 100%;
     border-radius: 8px;
-    background-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(110, 86, 207, 0.4);
+    background-color: var(--secondary-color);
+    box-shadow: 0 4px 12px rgba(249, 117, 131, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
