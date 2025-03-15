@@ -72,6 +72,7 @@ class VoiceInterviewSystem {
             // Display the recorded audio for this response
             const audioURL = URL.createObjectURL(responseBlob);
             this.recordedAudio.src = audioURL;
+            this.recordedAudio.controls = true;
             this.audioPlayer.style.display = 'block';
             
             // Enable next question button

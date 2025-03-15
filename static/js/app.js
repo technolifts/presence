@@ -221,12 +221,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 if (response.ok) {
-                    // Get audio blob
+                    // Get audio blob and play
                     const audioBlob = await response.blob();
                     const audioURL = URL.createObjectURL(audioBlob);
                     
-                    // Update audio player
+                    // Unified audio playback
                     testAudio.src = audioURL;
+                    testAudio.controls = true;
+                    testAudio.className = 'unified-audio';
                     testAudioPlayer.style.display = 'block';
                     testAudio.play();
                 } else {
