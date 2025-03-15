@@ -37,6 +37,22 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 app.logger.addHandler(handler)
 
+# Ensure required directories exist
+def ensure_directories():
+    """Create necessary directories for the application"""
+    directories = [
+        os.path.join(app.root_path, "documents"),
+        os.path.join(app.root_path, "profiles"),
+    ]
+    
+    for directory in directories:
+        if not os.path.exists(directory):
+            app.logger.info(f"Creating directory: {directory}")
+            os.makedirs(directory, exist_ok=True)
+
+# Create directories on startup
+ensure_directories()
+
 # Load prompt configuration
 def load_prompt_config():
     """Load prompts from the configuration file"""
@@ -474,11 +490,28 @@ def upload_document():
     if not os.path.exists(profile_path):
         return jsonify({"error": "Agent not found"}), 404
     
-    # Send the document to the API for parsing
-    files = {"file": (document_file.filename, document_file, document_file.content_type)}
-    data = {"agent_id": agent_id}
+    # Ensure the document has a filename
+    if document_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+        
+    # Create documents directory structure locally
+    documents_dir = os.path.join(app.root_path, "documents")
+    os.makedirs(documents_dir, exist_ok=True)
     
-    response, status_code = api_request("/api/documents/parse", method="POST", data=data, files=files)
+    agent_docs_dir = os.path.join(documents_dir, agent_id)
+    os.makedirs(agent_docs_dir, exist_ok=True)
+    
+    # Save a local copy of the file first
+    local_filename = os.path.join(agent_docs_dir, document_file.filename)
+    document_file.save(local_filename)
+    
+    # Reopen the file for sending to API
+    with open(local_filename, 'rb') as f:
+        # Send the document to the API for parsing
+        files = {"file": (document_file.filename, f, document_file.content_type)}
+        data = {"agent_id": agent_id}
+        
+        response, status_code = api_request("/api/documents/parse", method="POST", data=data, files=files)
     
     if status_code == 200:
         return jsonify(response)
@@ -488,6 +521,28 @@ def upload_document():
 @app.route("/documents/<agent_id>")
 def list_documents(agent_id):
     """List all documents associated with an agent"""
+    # First check local documents directory
+    local_docs_dir = os.path.join(app.root_path, "documents", agent_id)
+    if os.path.exists(local_docs_dir):
+        try:
+            documents = []
+            for filename in os.listdir(local_docs_dir):
+                file_path = os.path.join(local_docs_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    # Only include text files in the listing (parsed content)
+                    if filename.endswith('.txt'):
+                        documents.append({
+                            "filename": filename,
+                            "file_size": os.path.getsize(file_path),
+                            "last_modified": os.path.getmtime(file_path)
+                        })
+            
+            if documents:
+                return jsonify({"documents": documents})
+        except Exception as e:
+            app.logger.error(f"Error listing local documents: {str(e)}")
+    
+    # Fall back to API if no local documents found
     response, status_code = api_request(f"/api/documents?agent_id={agent_id}")
     
     if status_code == 200:
@@ -498,6 +553,29 @@ def list_documents(agent_id):
 @app.route("/documents/<agent_id>/<filename>", methods=["DELETE"])
 def delete_document(agent_id, filename):
     """Delete a document associated with an agent"""
+    # First try to delete from local directory
+    local_file_path = os.path.join(app.root_path, "documents", agent_id, filename)
+    if os.path.exists(local_file_path):
+        try:
+            os.remove(local_file_path)
+            app.logger.info(f"Deleted local document: {local_file_path}")
+            
+            # Also try to delete the original file if it exists
+            if filename.endswith('.txt'):
+                # Try to find and delete the original file
+                base_name = os.path.splitext(filename)[0]
+                docs_dir = os.path.join(app.root_path, "documents", agent_id)
+                for orig_file in os.listdir(docs_dir):
+                    if orig_file.startswith(f"original_{base_name.split('_')[0]}"):
+                        orig_path = os.path.join(docs_dir, orig_file)
+                        os.remove(orig_path)
+                        app.logger.info(f"Deleted original document: {orig_path}")
+            
+            return jsonify({"status": "success", "message": f"Document {filename} deleted"})
+        except Exception as e:
+            app.logger.error(f"Error deleting local document: {str(e)}")
+    
+    # Fall back to API if local deletion fails or file not found
     response, status_code = api_request(f"/api/documents/{filename}?agent_id={agent_id}", method="DELETE")
     
     if status_code == 200:

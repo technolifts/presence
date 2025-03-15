@@ -491,6 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Process each document
         for (const file of window.pendingDocuments) {
             try {
+                console.log(`Uploading document: ${file.name} for agent: ${agentId}`);
+                
                 // Create form data for API request
                 const formData = new FormData();
                 formData.append('document', file);
@@ -502,15 +504,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData
                 });
                 
+                const responseData = await response.json();
+                
                 if (response.ok) {
+                    console.log(`Successfully uploaded document: ${file.name}`, responseData);
                     uploadedCount++;
                 } else {
                     failedCount++;
-                    console.error(`Failed to upload document: ${file.name}`);
+                    console.error(`Failed to upload document: ${file.name}`, responseData);
+                    alert(`Failed to upload document: ${file.name} - ${responseData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 failedCount++;
                 console.error(`Error uploading document: ${file.name}`, error);
+                alert(`Error uploading document: ${file.name} - ${error.message}`);
             }
         }
         

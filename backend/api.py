@@ -395,9 +395,19 @@ async def parse_document(
             os.makedirs(agent_docs_dir, exist_ok=True)
             
             # Save the document text
-            doc_filename = f"{os.path.splitext(filename)[0]}_{ext[1:]}.txt"
+            # Use a more unique filename to avoid collisions
+            timestamp = int(os.path.getmtime(temp_file.name))
+            safe_filename = ''.join(c if c.isalnum() or c in '._- ' else '_' for c in os.path.splitext(filename)[0])
+            doc_filename = f"{safe_filename}_{timestamp}{ext}.txt"
+            
             with open(os.path.join(agent_docs_dir, doc_filename), "w", encoding="utf-8") as f:
                 f.write(text)
+                
+            # Also save a copy of the original file for reference
+            original_file_path = os.path.join(agent_docs_dir, f"original_{safe_filename}_{timestamp}{ext}")
+            with open(original_file_path, "wb") as f:
+                with open(temp_file.name, "rb") as src:
+                    f.write(src.read())
         
         return {
             "text": text[:1000] + "..." if len(text) > 1000 else text,  # Preview only
