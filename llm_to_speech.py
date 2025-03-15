@@ -11,8 +11,7 @@ import time
 import argparse
 from typing import Optional
 import anthropic
-from elevenlabs import Voice, VoiceSettings, generate, play, save
-from elevenlabs.api import User
+from elevenlabs import Client
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -22,9 +21,10 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
-# Set ElevenLabs API key
+# Initialize ElevenLabs client
+elevenlabs_client = None
 if ELEVENLABS_API_KEY:
-    os.environ["ELEVEN_API_KEY"] = ELEVENLABS_API_KEY
+    elevenlabs_client = Client(api_key=ELEVENLABS_API_KEY)
 
 
 def get_llm_response(prompt: str, model: str = "claude-3-opus-20240229") -> str:
@@ -65,13 +65,29 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
         voice_name: The voice to use (default: Adam)
         save_path: Optional path to save the audio file
     """
-    if not ELEVENLABS_API_KEY:
+    if not elevenlabs_client:
         raise ValueError("ElevenLabs API key not found. Please set ELEVENLABS_API_KEY environment variable.")
     
-    audio = generate(
+    # Get available voices
+    voices = elevenlabs_client.voices.get_all()
+    voice_id = None
+    
+    # Find the voice ID by name
+    for voice in voices:
+        if voice.name.lower() == voice_name.lower():
+            voice_id = voice.voice_id
+            break
+    
+    if not voice_id:
+        # If voice not found, use the first available voice
+        voice_id = voices[0].voice_id
+        print(f"Voice '{voice_name}' not found. Using '{voices[0].name}' instead.")
+    
+    # Generate audio
+    audio = elevenlabs_client.generate(
         text=text,
-        voice=voice_name,
-        model="eleven_monolingual_v1"
+        voice_id=voice_id,
+        model_id="eleven_monolingual_v1"
     )
     
     if save_path:
@@ -79,7 +95,15 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
             f.write(audio)
         print(f"Audio saved to {save_path}")
     else:
-        play(audio)
+        # Play audio
+        from io import BytesIO
+        import sounddevice as sd
+        import soundfile as sf
+        
+        audio_data = BytesIO(audio)
+        data, samplerate = sf.read(audio_data)
+        sd.play(data, samplerate)
+        sd.wait()
 
 
 def main():
