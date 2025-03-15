@@ -6,3 +6,4 @@ elevenlabs>=0.2.24
 # Utilities
 python-dotenv>=1.0.0
 moviepy>=1.0.3
+pydub>=0.25.1

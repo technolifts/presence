@@ -96,64 +96,83 @@ class VoiceProcessor:
         Returns:
             Voice ID of the cloned voice
         """
-        # Prepare files for multipart form data
-        files = []
-        temp_files = []
+        print(f"Attempting to clone voice from file: {audio_file if isinstance(audio_file, str) else 'file object'}")
         
         try:
-            # Handle file path vs file object
+            # Directly use the file path with the ElevenLabs API
             if isinstance(audio_file, str):
-                # If it's a file path, just use it directly
-                files.append(("files", (os.path.basename(audio_file), open(audio_file, "rb"), "audio/mpeg")))
-                temp_files.append(None)  # No temp file needed
+                print(f"Using file path: {audio_file}")
+                # Verify the file exists and is readable
+                if not os.path.exists(audio_file):
+                    raise ValueError(f"Audio file not found: {audio_file}")
+                
+                # Set description if not provided
+                if not description:
+                    description = f"Cloned voice: {voice_name}"
+                
+                # Make the API request directly with the file path
+                try:
+                    voice_response = self.elevenlabs_client.voices.add(
+                        name=voice_name,
+                        description=description,
+                        files=[audio_file],
+                        remove_background_noise=remove_background_noise
+                    )
+                    
+                    voice_id = voice_response.voice_id
+                    self.cloned_voices[voice_name] = voice_id
+                    return voice_id
+                except Exception as e:
+                    print(f"ElevenLabs API error: {str(e)}")
+                    # Try with a more explicit approach if the direct method fails
+                    raise
             else:
-                # If it's a file object, create a temporary file
+                # Handle file-like object
                 pos = audio_file.tell()
                 audio_file.seek(0)
                 voice_data = audio_file.read()
                 audio_file.seek(pos)  # Restore position
                 
+                # Create a temporary file
                 temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
                 temp_file.write(voice_data)
                 temp_file.close()
                 
-                files.append(("files", (os.path.basename(temp_file.name), open(temp_file.name, "rb"), "audio/mpeg")))
-                temp_files.append(temp_file.name)
-            
-            # Prepare form data
-            form_data = {
-                "name": voice_name,
-                "remove_background_noise": "true" if remove_background_noise else "false"
-            }
-            
-            if description:
-                form_data["description"] = description
-            else:
-                form_data["description"] = f"Cloned voice: {voice_name}"
-            
-            # Make the API request
-            voice_response = self.elevenlabs_client.voices.add(
-                name=voice_name,
-                description=form_data["description"],
-                files=[f[1][1].name for f in files],  # Extract file paths
-                remove_background_noise=remove_background_noise
-            )
-            
-            voice_id = voice_response.voice_id
-            self.cloned_voices[voice_name] = voice_id
-            return voice_id
-            
-        finally:
-            # Close and clean up any file handles and temporary files
-            for file_tuple in files:
-                file_tuple[1][1].close()
-            
-            for temp_file_path in temp_files:
-                if temp_file_path:
+                print(f"Created temporary file: {temp_file.name}")
+                
+                # Set description if not provided
+                if not description:
+                    description = f"Cloned voice: {voice_name}"
+                
+                try:
+                    voice_response = self.elevenlabs_client.voices.add(
+                        name=voice_name,
+                        description=description,
+                        files=[temp_file.name],
+                        remove_background_noise=remove_background_noise
+                    )
+                    
+                    voice_id = voice_response.voice_id
+                    self.cloned_voices[voice_name] = voice_id
+                    
+                    # Clean up the temporary file
                     try:
-                        os.unlink(temp_file_path)
+                        os.unlink(temp_file.name)
                     except (OSError, FileNotFoundError):
                         pass
+                    
+                    return voice_id
+                except Exception as e:
+                    print(f"ElevenLabs API error: {str(e)}")
+                    # Clean up the temporary file
+                    try:
+                        os.unlink(temp_file.name)
+                    except (OSError, FileNotFoundError):
+                        pass
+                    raise
+        except Exception as e:
+            print(f"Error cloning voice: {str(e)}")
+            raise
     
     def text_to_speech(self, text: str, voice_name: str = None, voice_id: str = None, 
                        save_path: Optional[str] = None) -> Optional[bytes]:
