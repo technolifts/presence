@@ -387,7 +387,7 @@ textarea {
 audio {
     width: 100%;
     filter: invert(0.85);
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     margin: 10px 0;
     background-color: var(--bg-light);
@@ -395,7 +395,7 @@ audio {
 
 audio::-webkit-media-controls-panel {
     background-color: var(--secondary-color);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 5px;
 }
 
@@ -415,14 +415,14 @@ audio::-webkit-media-controls-time-remaining-display {
 
 audio::-webkit-media-controls-timeline {
     background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
+    border-radius: 6px;
     height: 8px;
     margin: 0 10px;
 }
 
 audio::-webkit-media-controls-volume-slider {
     background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 0 5px;
 }
 
