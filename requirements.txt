@@ -7,3 +7,8 @@ elevenlabs>=0.2.24
 python-dotenv>=1.0.0
 moviepy>=1.0.3
 pydub>=0.25.1
+
+# API framework
+fastapi>=0.104.0
+uvicorn>=0.23.2
+python-multipart>=0.0.6
