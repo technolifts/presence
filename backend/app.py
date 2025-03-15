@@ -9,6 +9,7 @@ and creating voice clones using the Voice Processing API.
 import os
 import requests
 import json
+import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from dotenv import load_dotenv
 
@@ -49,8 +50,13 @@ def api_request(endpoint, method="GET", data=None, files=None):
 # Routes
 @app.route("/")
 def index():
-    """Render the main page"""
+    """Render the profile creation page"""
     return render_template("index.html")
+
+@app.route("/visitor")
+def visitor():
+    """Render the visitor page for interacting with AI agents"""
+    return render_template("visitor.html")
 
 @app.route("/voices")
 def voices():
@@ -62,13 +68,24 @@ def voices():
 
 @app.route("/clone-voice", methods=["POST"])
 def clone_voice():
-    """Clone a voice from an audio recording"""
+    """Clone a voice from an audio recording and create an agent profile"""
     if "audio" not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
     
     audio_file = request.files["audio"]
-    name = request.form.get("name", "My Voice Clone")
-    description = request.form.get("description", "Created with Voice Cloning UI")
+    name = request.form.get("name", "My AI Agent")
+    description = request.form.get("description", "")
+    
+    # Get additional profile information
+    profile_name = request.form.get("profile_name", "")
+    profile_title = request.form.get("profile_title", "")
+    profile_bio = request.form.get("profile_bio", "")
+    
+    # Create a more detailed description for the voice
+    if not description and (profile_name or profile_title or profile_bio):
+        description = f"AI Agent for {profile_name}"
+        if profile_title:
+            description += f", {profile_title}"
     
     files = {"file": (f"{name}.mp3", audio_file, "audio/mpeg")}
     data = {
@@ -80,9 +97,34 @@ def clone_voice():
     response, status_code = api_request("/api/voices/clone", method="POST", data=data, files=files)
     
     if status_code == 200:
-        # Store the voice ID in session
+        # Store the voice ID and profile info in session
         session["last_voice_id"] = response.get("voice_id")
         session["last_voice_name"] = name
+        session["profile_name"] = profile_name
+        session["profile_title"] = profile_title
+        session["profile_bio"] = profile_bio
+        
+        # Store the profile in a database or file system (simplified for now)
+        # In a real implementation, you would save this to a database
+        try:
+            profiles_dir = os.path.join(app.root_path, "profiles")
+            os.makedirs(profiles_dir, exist_ok=True)
+            
+            profile_data = {
+                "voice_id": response.get("voice_id"),
+                "name": profile_name,
+                "title": profile_title,
+                "bio": profile_bio,
+                "created_at": str(datetime.datetime.now())
+            }
+            
+            with open(os.path.join(profiles_dir, f"{response.get('voice_id')}.json"), "w") as f:
+                json.dump(profile_data, f)
+                
+            response["profile"] = profile_data
+        except Exception as e:
+            app.logger.error(f"Error saving profile: {str(e)}")
+            
         return jsonify(response)
     
     return jsonify(response), status_code

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Agent - Visitor Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Voice Agent</h1>
+            <p>Chat with AI agents using real human voices</p>
+            <nav>
+                <a href="{{ url_for('index') }}">Create Your Agent</a>
+                <a href="{{ url_for('visitor') }}" class="active">Talk to Agents</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="agent-selection">
+                <h2>Select an Agent to Talk With</h2>
+                <div class="agent-list" id="agentList">
+                    <p class="loading">Loading available agents...</p>
+                </div>
+            </section>
+
+            <section class="conversation-section" style="display: none;">
+                <h2>Conversation with <span id="currentAgentName">Agent</span></h2>
+                
+                <div class="conversation-container">
+                    <div class="messages" id="messageContainer">
+                        <div class="message agent">
+                            <p>Hello! I'm your AI assistant. How can I help you today?</p>
+                        </div>
+                    </div>
+                    
+                    <div class="input-container">
+                        <textarea id="userMessage" placeholder="Type your message here..."></textarea>
+                        <div class="controls">
+                            <button id="sendButton" class="btn primary-btn">Send</button>
+                            <button id="micButton" class="btn secondary-btn">
+                                <span class="mic-icon"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 AI Voice Agent Project</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/visitor.js') }}"></script>
+</body>
+</html>

@@ -3,22 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Cloning UI</title>
+    <title>AI Voice Agent - Create Your Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Voice Cloning UI</h1>
-            <p>Record your voice and create a digital clone</p>
+            <h1>AI Voice Agent</h1>
+            <p>Create your own AI agent with your voice</p>
+            <nav>
+                <a href="{{ url_for('index') }}" class="active">Create Your Agent</a>
+                <a href="{{ url_for('visitor') }}">Talk to Agents</a>
+            </nav>
         </header>
 
         <main>
+            <section class="profile-section">
+                <h2>Create Your AI Agent Profile</h2>
+                <p>Fill in your information and record your voice to create your AI agent.</p>
+                
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="profileName">Your Name:</label>
+                        <input type="text" id="profileName" name="profileName" required placeholder="John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="profileTitle">Professional Title:</label>
+                        <input type="text" id="profileTitle" name="profileTitle" placeholder="Software Engineer">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="profileBio">Short Bio:</label>
+                        <textarea id="profileBio" name="profileBio" placeholder="Tell us about yourself, your expertise, and what visitors might want to ask you about."></textarea>
+                    </div>
+                </form>
+            </section>
+            
             <section class="recording-section">
                 <h2>Record Your Voice</h2>
-                <p>Record a sample of your voice to create a voice clone.</p>
-                <p class="tip">Tip: For best results, speak clearly for at least 30 seconds in a quiet environment.</p>
+                <p>Record a sample of your voice to create your AI agent.</p>
+                <p class="tip">Tip: For best results, speak clearly for at least 1-2 minutes in a quiet environment. Read the sample script below or introduce yourself naturally.</p>
+                
+                <div class="sample-script">
+                    <h3>Sample Script (Optional)</h3>
+                    <p>Hello, my name is [Your Name]. I'm a [Your Profession] with expertise in [Your Areas of Expertise]. I'm passionate about [Your Interests]. In my free time, I enjoy [Your Hobbies]. I'm creating this AI voice agent to help answer questions about [Topics]. Feel free to ask me anything about my work, experience, or opinions on relevant topics.</p>
+                </div>
                 
                 <div class="recorder-container">
                     <div class="recorder-controls">
@@ -40,20 +71,13 @@
             </section>
 
             <section class="voice-clone-section">
-                <h2>Create Voice Clone</h2>
+                <h2>Create Your AI Agent</h2>
                 <form id="voiceCloneForm">
-                    <div class="form-group">
-                        <label for="voiceName">Voice Name:</label>
-                        <input type="text" id="voiceName" name="voiceName" required placeholder="My Voice Clone">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="voiceDescription">Description (optional):</label>
-                        <textarea id="voiceDescription" name="voiceDescription" placeholder="A brief description of this voice"></textarea>
-                    </div>
+                    <input type="hidden" id="voiceName" name="voiceName">
+                    <input type="hidden" id="voiceDescription" name="voiceDescription">
                     
                     <button type="submit" id="createVoiceButton" class="btn primary-btn" disabled>
-                        Create Voice Clone
+                        Create My AI Agent
                     </button>
                 </form>
                 
@@ -63,19 +87,30 @@
                 </div>
                 
                 <div id="cloneResult" class="result-container" style="display: none;">
-                    <h3>Voice Clone Created!</h3>
+                    <h3>AI Agent Created!</h3>
                     <div class="voice-info">
-                        <p>Voice Name: <span id="resultVoiceName"></span></p>
-                        <p>Voice ID: <span id="resultVoiceId"></span></p>
+                        <p>Agent Name: <span id="resultAgentName"></span></p>
+                        <p>Agent ID: <span id="resultVoiceId"></span></p>
                     </div>
                     
                     <div class="try-voice-section">
-                        <h3>Try Your Voice</h3>
-                        <textarea id="testText" placeholder="Enter text to speak with your cloned voice...">Hello, this is my cloned voice. What do you think?</textarea>
-                        <button id="speakButton" class="btn secondary-btn">Speak Text</button>
+                        <h3>Try Your AI Agent</h3>
+                        <p>Ask your AI agent a question to see how it responds with your voice:</p>
+                        <textarea id="testText" placeholder="Enter a question to ask your AI agent...">Tell me about yourself and what you do.</textarea>
+                        <button id="speakButton" class="btn secondary-btn">Ask Question</button>
                         <div class="test-audio-player" style="display: none;">
                             <audio id="testAudio" controls></audio>
                         </div>
+                    </div>
+                    
+                    <div class="next-steps">
+                        <h3>Next Steps</h3>
+                        <p>Your AI agent is now available for visitors to interact with! Share the link below:</p>
+                        <div class="share-link">
+                            <input type="text" id="shareLink" readonly value="{{ request.url_root }}visitor">
+                            <button id="copyLink" class="btn small-btn">Copy</button>
+                        </div>
+                        <a href="{{ url_for('visitor') }}" class="btn primary-btn">Go to Visitor Page</a>
                     </div>
                 </div>
             </section>

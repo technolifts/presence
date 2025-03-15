@@ -8,10 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const visualizerCanvas = document.getElementById('visualizer');
     const recordedAudio = document.getElementById('recordedAudio');
     const audioPlayer = document.querySelector('.audio-player');
+    const profileForm = document.getElementById('profileForm');
     const voiceCloneForm = document.getElementById('voiceCloneForm');
     const createVoiceButton = document.getElementById('createVoiceButton');
     const cloneStatus = document.getElementById('cloneStatus');
     const cloneResult = document.getElementById('cloneResult');
+    const profileName = document.getElementById('profileName');
+    const profileTitle = document.getElementById('profileTitle');
+    const profileBio = document.getElementById('profileBio');
+    const copyLinkButton = document.getElementById('copyLink');
+    const shareLinkInput = document.getElementById('shareLink');
     const resultVoiceName = document.getElementById('resultVoiceName');
     const resultVoiceId = document.getElementById('resultVoiceId');
     const speakButton = document.getElementById('speakButton');
@@ -187,3 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize
     createDirectoryStructure();
 });
+    // Copy share link
+    if (copyLinkButton) {
+        copyLinkButton.addEventListener('click', () => {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            copyLinkButton.textContent = 'Copied!';
+            setTimeout(() => {
+                copyLinkButton.textContent = 'Copy';
+            }, 2000);
+        });
+    }
