@@ -355,11 +355,25 @@ def chat():
                                 app.logger.info(f"Message delta received: {chunk.delta}")
                             elif chunk.type == "content_block_start":
                                 app.logger.info(f"Content block start: {chunk.content_block}")
+                                # Mark that we have content when we see a content block start
+                                if chunk.content_block and chunk.content_block.type == "text":
+                                    has_content = True
                             elif chunk.type == "content_block_stop":
                                 app.logger.info(f"Content block stop: {chunk.content_block}")
+                                # Extract the full text from content_block_stop events
+                                if chunk.content_block and chunk.content_block.type == "text" and chunk.content_block.text:
+                                    # If this is the first content we're seeing, send it as a chunk
+                                    if not full_response:
+                                        chunk_data = json.dumps({'chunk': chunk.content_block.text})
+                                        app.logger.info(f"Sending full block text: {chunk_data}")
+                                        yield f"data: {chunk_data}\n\n"
+                                    # Update the full response if it doesn't already contain this text
+                                    if chunk.content_block.text not in full_response:
+                                        full_response = chunk.content_block.text
+                                    has_content = True
                     
                         # If we didn't get any content, generate a fallback response
-                        if not has_content:
+                        if not has_content or not full_response.strip():
                             fallback_response = "I'm sorry, I couldn't generate a response at this time. Please try again."
                             fallback_chunk = json.dumps({'chunk': fallback_response})
                             app.logger.warning("No content received from API, sending fallback response")
@@ -694,7 +708,8 @@ def debug_anthropic_key():
                 "status": "success", 
                 "key_format": "valid", 
                 "masked_key": masked_key,
-                "response": str(response)[:100] + "..."
+                "response": str(response)[:100] + "...",
+                "response_content": str(response.content) if hasattr(response, 'content') else "No content attribute"
             }), 200
         except Exception as e:
             return jsonify({
@@ -706,6 +721,71 @@ def debug_anthropic_key():
             
     except Exception as e:
         return jsonify({"error": f"Error checking Anthropic API key: {str(e)}"}), 500
+
+@app.route("/debug/anthropic-stream")
+def debug_anthropic_stream():
+    """Debug endpoint to test Anthropic streaming response"""
+    try:
+        # Get API key from environment
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            return jsonify({"error": "ANTHROPIC_API_KEY not found in environment"}), 500
+        
+        # Initialize Anthropic client
+        import anthropic
+        client = anthropic.Anthropic(api_key=anthropic_api_key)
+        
+        # Create a simple streaming response
+        def generate():
+            try:
+                with client.messages.stream(
+                    model="claude-3-7-sonnet-20250219",
+                    max_tokens=100,
+                    messages=[{"role": "user", "content": "Say hello and introduce yourself briefly"}],
+                    system="You are a helpful assistant."
+                ) as stream:
+                    # Log each event type
+                    events = []
+                    for chunk in stream:
+                        event_info = {
+                            "type": chunk.type,
+                            "attributes": {}
+                        }
+                        
+                        # Add specific attributes based on event type
+                        if chunk.type == "content_block_delta":
+                            event_info["attributes"]["delta_type"] = chunk.delta.type
+                            if chunk.delta.type == "text":
+                                event_info["attributes"]["text"] = chunk.delta.text
+                        elif chunk.type == "content_block_start":
+                            if hasattr(chunk.content_block, "type"):
+                                event_info["attributes"]["block_type"] = chunk.content_block.type
+                        elif chunk.type == "content_block_stop":
+                            if hasattr(chunk.content_block, "type"):
+                                event_info["attributes"]["block_type"] = chunk.content_block.type
+                            if hasattr(chunk.content_block, "text"):
+                                event_info["attributes"]["text"] = chunk.content_block.text
+                        elif chunk.type == "message_delta":
+                            if hasattr(chunk.delta, "stop_reason"):
+                                event_info["attributes"]["stop_reason"] = chunk.delta.stop_reason
+                        
+                        events.append(event_info)
+                    
+                    return jsonify({
+                        "status": "success",
+                        "events": events
+                    })
+            except Exception as e:
+                app.logger.error(f"Error in debug stream: {str(e)}")
+                return jsonify({
+                    "status": "error",
+                    "error": str(e)
+                }), 500
+        
+        return generate()
+    except Exception as e:
+        app.logger.error(f"Error in debug stream endpoint: {str(e)}")
+        return jsonify({"error": f"Error testing Anthropic streaming: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5050)
