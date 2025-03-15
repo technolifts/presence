@@ -79,12 +79,92 @@ document.addEventListener('DOMContentLoaded', () => {
         // Scroll to conversation section
         conversationSection.scrollIntoView({ behavior: 'smooth' });
         
-        // Clear previous messages and add initial greeting
-        messageContainer.innerHTML = `
-            <div class="message agent">
-                <p>Hello! I'm ${agentName}. How can I help you today?</p>
-            </div>
-        `;
+        // Clear previous messages
+        messageContainer.innerHTML = '';
+        
+        // Send an initial greeting request to get a personalized greeting from the AI
+        sendInitialGreeting(agentId, agentName);
+    }
+    
+    async function sendInitialGreeting(agentId, agentName) {
+        // Show typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'message agent typing';
+        typingIndicator.innerHTML = '<p>Thinking...</p>';
+        messageContainer.appendChild(typingIndicator);
+        
+        try {
+            // Send a greeting request to the server
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: "Please introduce yourself briefly",
+                    agent_id: agentId
+                })
+            });
+            
+            // Remove typing indicator
+            messageContainer.removeChild(typingIndicator);
+            
+            if (response.ok) {
+                const audioBlob = await response.blob();
+                
+                // Create a placeholder for the agent's response
+                const responseMessage = document.createElement('div');
+                responseMessage.className = 'message agent';
+                responseMessage.innerHTML = '<p>Response loading...</p>';
+                messageContainer.appendChild(responseMessage);
+                
+                // Create audio element
+                const audio = new Audio(URL.createObjectURL(audioBlob));
+                
+                // Add audio to the message
+                const audioElement = document.createElement('audio');
+                audioElement.controls = true;
+                audioElement.src = URL.createObjectURL(audioBlob);
+                responseMessage.appendChild(audioElement);
+                
+                // Add event listener for when audio starts playing
+                audio.addEventListener('play', () => {
+                    responseMessage.classList.add('playing');
+                });
+                
+                // Add event listener for when audio ends
+                audio.addEventListener('ended', () => {
+                    responseMessage.classList.remove('playing');
+                });
+                
+                // Play audio
+                audio.play();
+                
+                // Get the text transcript (if available)
+                try {
+                    const textResponse = await fetch('/last-response-text');
+                    if (textResponse.ok) {
+                        const textData = await textResponse.json();
+                        responseMessage.querySelector('p').textContent = textData.text;
+                    }
+                } catch (error) {
+                    console.error('Error getting response text:', error);
+                }
+            } else {
+                // If there's an error, just show a default greeting
+                const defaultGreeting = document.createElement('div');
+                defaultGreeting.className = 'message agent';
+                defaultGreeting.innerHTML = `<p>Hello! I'm ${agentName}. How can I help you today?</p>`;
+                messageContainer.appendChild(defaultGreeting);
+            }
+        } catch (error) {
+            console.error('Error sending initial greeting:', error);
+            // Show default greeting on error
+            const defaultGreeting = document.createElement('div');
+            defaultGreeting.className = 'message agent';
+            defaultGreeting.innerHTML = `<p>Hello! I'm ${agentName}. How can I help you today?</p>`;
+            messageContainer.appendChild(defaultGreeting);
+        }
     }
     
     async function sendMessage() {

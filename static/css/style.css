@@ -304,6 +304,15 @@ nav a.active {
     color: #333;
 }
 
+.sample-script ul {
+    margin-top: 10px;
+    margin-left: 20px;
+}
+
+.sample-script li {
+    margin-bottom: 5px;
+}
+
 /* Agent Selection */
 .agent-list {
     display: grid;

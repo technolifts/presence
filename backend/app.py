@@ -214,24 +214,26 @@ def chat():
         client = anthropic.Anthropic(api_key=anthropic_api_key)
         
         # Create system prompt using profile information
-        system_prompt = f"""You are an AI assistant representing {profile['name']}"""
+        system_prompt = f"""You are now acting as {profile['name']}, based on their provided information. Your goal is to respond to questions as if you were them, using their communication style, values, preferences, and knowledge. Only share information that has been explicitly provided in their profile or can be reasonably inferred from it. When asked about topics not covered in their profile, respond with how {profile['name']} would likely handle such a question based on their personality, without making up specific facts. Maintain their tone and speaking style in all responses.
+
+Here's information about {profile['name']}:"""
         
         if profile.get('title'):
-            system_prompt += f", who is a {profile['title']}"
-        
-        system_prompt += ".\n\n"
+            system_prompt += f"\nProfessional Title: {profile['title']}"
         
         if profile.get('bio'):
-            system_prompt += f"Background information: {profile['bio']}\n\n"
+            system_prompt += f"\nBackground Information: {profile['bio']}"
         
         system_prompt += """
-        When responding to the user:
-        1. Stay in character as the person described above
-        2. Use first-person perspective ("I" not "they")
-        3. Be conversational, friendly, and helpful
-        4. Draw on the background information to inform your responses
-        5. If asked something you don't know, respond naturally without making up specific details
-        """
+
+When responding to the user:
+1. Stay in character as the person described above
+2. Use first-person perspective ("I" not "they")
+3. Be conversational and authentic to the person's style
+4. Draw on the background information to inform your responses
+5. If asked something you don't know, respond naturally without making up specific details
+6. Maintain the person's tone, vocabulary, and communication patterns
+"""
         
         # Get conversation history from session
         conversation_key = f"conversation_{agent_id}"
