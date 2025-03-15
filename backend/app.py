@@ -95,7 +95,7 @@ def api_request(endpoint, method="GET", data=None, files=None):
 @app.route("/")
 def index():
     """Render the profile creation page"""
-    return render_template("static/templates/index.html")
+    return render_template("index.html")
 
 @app.route("/backend/sample_voice.mp3")
 def sample_voice():
@@ -105,7 +105,7 @@ def sample_voice():
 @app.route("/visitor")
 def visitor():
     """Render the visitor page for interacting with AI agents"""
-    return render_template("static/templates/visitor.html")
+    return render_template("visitor.html")
 
 @app.route("/voices")
 def voices():
