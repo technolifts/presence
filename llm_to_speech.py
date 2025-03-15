@@ -11,7 +11,7 @@ import time
 import argparse
 from typing import Optional
 import anthropic
-from elevenlabs import Client
+import elevenlabs
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -21,10 +21,9 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
-# Initialize ElevenLabs client
-elevenlabs_client = None
+# Set ElevenLabs API key
 if ELEVENLABS_API_KEY:
-    elevenlabs_client = Client(api_key=ELEVENLABS_API_KEY)
+    elevenlabs.set_api_key(ELEVENLABS_API_KEY)
 
 
 def get_llm_response(prompt: str, model: str = "claude-3-opus-20240229") -> str:
@@ -65,11 +64,11 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
         voice_name: The voice to use (default: Adam)
         save_path: Optional path to save the audio file
     """
-    if not elevenlabs_client:
+    if not ELEVENLABS_API_KEY:
         raise ValueError("ElevenLabs API key not found. Please set ELEVENLABS_API_KEY environment variable.")
     
     # Get available voices
-    voices = elevenlabs_client.voices.get_all()
+    voices = elevenlabs.voices()
     voice_id = None
     
     # Find the voice ID by name
@@ -84,26 +83,18 @@ def text_to_speech(text: str, voice_name: str = "Adam", save_path: Optional[str]
         print(f"Voice '{voice_name}' not found. Using '{voices[0].name}' instead.")
     
     # Generate audio
-    audio = elevenlabs_client.generate(
+    audio = elevenlabs.generate(
         text=text,
-        voice_id=voice_id,
-        model_id="eleven_monolingual_v1"
+        voice=voice_id,
+        model="eleven_monolingual_v1"
     )
     
     if save_path:
-        with open(save_path, "wb") as f:
-            f.write(audio)
+        elevenlabs.save(audio, save_path)
         print(f"Audio saved to {save_path}")
     else:
         # Play audio
-        from io import BytesIO
-        import sounddevice as sd
-        import soundfile as sf
-        
-        audio_data = BytesIO(audio)
-        data, samplerate = sf.read(audio_data)
-        sd.play(data, samplerate)
-        sd.wait()
+        elevenlabs.play(audio)
 
 
 def main():
