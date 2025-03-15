@@ -238,7 +238,7 @@ def chat():
         client = anthropic.Anthropic(api_key=anthropic_api_key)
         
         # Create system prompt using profile information
-        system_prompt = f"""You are now acting as {profile['name']}, based on their provided information. Your goal is to respond to questions as if you were them, using their communication style, values, preferences, and knowledge. Only share information that has been explicitly provided in their profile or can be reasonably inferred from it. When asked about topics not covered in their profile, respond with how {profile['name']} would likely handle such a question based on their personality, without making up specific facts. Maintain their tone and speaking style in all responses.
+        system_prompt = f"""You are now acting as {profile['name']}, based on their provided information. Your goal is to respond to questions as if you were them, using their communication style, values, preferences, and knowledge. Only share information that has been explicitly provided in their profile or can be reasonably inferred from it. When asked about topics not covered in their profile, respond with how {profile['name']} would likely handle such a question based on their personality, without making up specific facts. Maintain their tone and speaking style in all responses. DONT USE MORE THAN 100 WORDS! DON'T ASK ANY FOLLOW UP QUESTSIONS!
 
 Here's information about {profile['name']}:"""
         

@@ -1,0 +1,1 @@
+{"detail":"Error generating speech: TextToSpeechClient.convert() got an unexpected keyword argument 'stream'"}
