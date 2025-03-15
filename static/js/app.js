@@ -18,16 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileBio = document.getElementById('profileBio');
     const copyLinkButton = document.getElementById('copyLink');
     const shareLinkInput = document.getElementById('shareLink');
-    const resultVoiceName = document.getElementById('resultVoiceName');
+    const resultVoiceName = document.getElementById('resultAgentName');
     const resultVoiceId = document.getElementById('resultVoiceId');
     const speakButton = document.getElementById('speakButton');
     const testText = document.getElementById('testText');
     const testAudio = document.getElementById('testAudio');
     const testAudioPlayer = document.querySelector('.test-audio-player');
-    const questionContainer = document.getElementById('questionContainer');
-    const questionText = document.getElementById('questionText');
-    const nextQuestionBtn = document.getElementById('nextQuestionBtn');
-    const finishRecordingBtn = document.getElementById('finishRecordingBtn');
 
     // Set canvas dimensions
     if (visualizerCanvas) {
