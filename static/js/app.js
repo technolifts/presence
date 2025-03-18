@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileBio = document.getElementById('profileBio');
     const copyLinkButton = document.getElementById('copyLink');
     const shareLinkInput = document.getElementById('shareLink');
-    const resultVoiceName = document.getElementById('resultVoiceName');
+    const resultVoiceName = document.getElementById('resultAgentName');
     const resultVoiceId = document.getElementById('resultVoiceId');
     const speakButton = document.getElementById('speakButton');
     const testText = document.getElementById('testText');
@@ -70,43 +70,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Recording functionality
-    if (recordButton) {
-        recordButton.addEventListener('click', async () => {
-            if (recorder.isRecording) {
-                // Stop recording
-                recordButton.disabled = true;
-                recordButton.textContent = 'Processing...';
-                
-                audioBlob = await recorder.stop();
-                
-                // Update UI
-                recordButton.classList.remove('recording');
-                recordButton.innerHTML = '<span class="record-icon"></span>Start Recording';
-                recordButton.disabled = false;
-                
-                // Display the recorded audio
-                const audioURL = URL.createObjectURL(audioBlob);
-                recordedAudio.src = audioURL;
-                audioPlayer.style.display = 'block';
-                
-                // Enable the create voice button
-                createVoiceButton.disabled = false;
-            } else {
-                // Start recording
-                const started = await recorder.start();
-                
-                if (started) {
-                    // Update UI
-                    recordButton.classList.add('recording');
-                    recordButton.innerHTML = '<span class="record-icon"></span>Stop Recording';
-                    audioPlayer.style.display = 'none';
-                } else {
-                    alert('Could not access microphone. Please ensure you have granted permission.');
-                }
+    // Listen for interview completion event
+    document.addEventListener('interviewComplete', (event) => {
+        // Get the combined audio blob from the interview
+        audioBlob = event.detail.audioBlob;
+        
+        // Enable the create voice button
+        createVoiceButton.disabled = false;
+        
+        // Update profile fields from responses if they're empty
+        if (event.detail.responses && event.detail.responses.length > 0 && profileName.value === '') {
+            // Try to extract name from first response if it's about name
+            const firstQuestion = event.detail.responses[0].question;
+            if (firstQuestion.toLowerCase().includes('name')) {
+                profileName.value = 'Voice User'; // Default name
             }
-        });
-    }
+        }
+    });
 
     // Voice cloning form submission
     if (voiceCloneForm) {
@@ -143,12 +123,20 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('profile_name', name);
             formData.append('profile_title', title);
             formData.append('profile_bio', bio);
-        
-            // Add interview responses if available
-            if (window.interviewSystem && window.interviewSystem.isInterviewComplete) {
-                const interviewResponses = window.interviewSystem.getResponses();
-                formData.append('interview_data', JSON.stringify(interviewResponses));
+            
+            // Create interview data from our questions and recordings
+            const interviewData = [];
+            // Get questions and responses from the interview system if available
+            const interviewQuestions = window.interviewSystem ? window.interviewSystem.questions : [];
+            const recordedResponses = window.interviewSystem ? window.interviewSystem.audioResponses : [];
+            
+            for (let i = 0; i < interviewQuestions.length && i < recordedResponses.length; i++) {
+                interviewData.push({
+                    question: interviewQuestions[i],
+                    answer: `[Voice recording ${i+1}]`
+                });
             }
+            formData.append('interview_data', JSON.stringify(interviewData));
         
             // Show loading state
             createVoiceButton.disabled = true;
@@ -233,12 +221,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 if (response.ok) {
-                    // Get audio blob
+                    // Get audio blob and play
                     const audioBlob = await response.blob();
                     const audioURL = URL.createObjectURL(audioBlob);
                     
-                    // Update audio player
+                    // Unified audio playback
                     testAudio.src = audioURL;
+                    testAudio.controls = true;
+                    testAudio.className = 'unified-audio';
                     testAudioPlayer.style.display = 'block';
                     testAudio.play();
                 } else {
@@ -255,13 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Create templates directory if it doesn't exist
-    function createDirectoryStructure() {
-        console.log('Ensuring directory structure exists...');
-    }
-
-    // Initialize
-    createDirectoryStructure();
+    // Initialize application
+    console.log('Voice Cloning UI initialized');
 });
     // Document upload functionality
     const documentUploadForm = document.getElementById('documentUploadForm');
@@ -284,17 +269,59 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const voiceId = window.lastVoiceId;
             
-            // If no agent ID yet, store the document temporarily
+            // If no agent ID yet, upload to temporary storage
             if (!voiceId) {
-                const file = documentFile.files[0];
-                // Store file info for later upload
-                window.pendingDocuments.push(file);
+                // Show loading state
+                uploadDocumentButton.disabled = true;
+                documentStatus.style.display = 'block';
+                documentStatus.innerHTML = `<div class="loader"></div><p>Uploading document...</p>`;
                 
-                // Show in the documents list
-                displayPendingDocuments();
-                
-                // Clear file input
-                documentFile.value = '';
+                try {
+                    // Create form data for API request
+                    const formData = new FormData();
+                    formData.append('document', documentFile.files[0]);
+                    formData.append('temp_storage', 'true'); // Flag for temporary storage
+                    
+                    // Send request to upload document to temporary storage
+                    const response = await fetch('/upload-temp-document', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Store file info for later association
+                        const file = documentFile.files[0];
+                        window.pendingDocuments.push({
+                            file: file,
+                            temp_id: data.temp_id
+                        });
+                        
+                        // Show success message
+                        documentStatus.innerHTML = `<p>Document uploaded successfully: ${file.name}</p>`;
+                        setTimeout(() => {
+                            documentStatus.style.display = 'none';
+                        }, 3000);
+                        
+                        // Show in the documents list
+                        displayPendingDocuments();
+                        
+                        // Clear file input
+                        documentFile.value = '';
+                    } else {
+                        // Show error
+                        alert(`Error: ${data.error || 'Failed to upload document'}`);
+                        documentStatus.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error uploading document:', error);
+                    alert(`Error: ${error.message}`);
+                    documentStatus.style.display = 'none';
+                } finally {
+                    // Reset UI
+                    uploadDocumentButton.disabled = false;
+                }
                 
                 return;
             }
@@ -368,9 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        let html = '<ul class="documents-list"><li class="pending-notice">Documents will be processed after agent creation</li>';
+        let html = '<ul class="documents-list"><li class="pending-notice">Documents will be associated with your agent after creation</li>';
         
-        window.pendingDocuments.forEach((doc, index) => {
+        window.pendingDocuments.forEach((docInfo, index) => {
+            const doc = docInfo.file || docInfo;
             // Format file size
             const fileSize = formatFileSize(doc.size);
             
@@ -378,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <li class="document-item pending">
                     <div class="document-info">
                         <span class="document-name">${doc.name}</span>
-                        <span class="document-meta">${fileSize} • Pending</span>
+                        <span class="document-meta">${fileSize} • ${docInfo.temp_id ? 'Uploaded' : 'Pending'}</span>
                     </div>
                     <button class="btn delete-btn" data-index="${index}">Remove</button>
                 </li>
@@ -465,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Copy share link
+    const copyLinkButton = document.getElementById('copyLink');
     if (copyLinkButton) {
         copyLinkButton.addEventListener('click', () => {
             shareLinkInput.select();
@@ -486,31 +515,63 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Show status
         documentStatus.style.display = 'block';
-        documentStatus.innerHTML = `<div class="loader"></div><p>Uploading ${totalDocs} document(s)...</p>`;
+        documentStatus.innerHTML = `<div class="loader"></div><p>Associating ${totalDocs} document(s) with agent...</p>`;
         
         // Process each document
-        for (const file of window.pendingDocuments) {
+        for (const docInfo of window.pendingDocuments) {
             try {
+                console.log(`Associating document with agent: ${agentId}`);
+                
                 // Create form data for API request
                 const formData = new FormData();
-                formData.append('document', file);
-                formData.append('agent_id', agentId);
-                
-                // Send request to upload document
-                const response = await fetch('/upload-document', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    uploadedCount++;
+                if (docInfo.temp_id) {
+                    // If we have a temp_id, use that to associate the already uploaded document
+                    formData.append('temp_id', docInfo.temp_id);
+                    formData.append('agent_id', agentId);
+                    
+                    // Send request to associate document
+                    const response = await fetch('/associate-document', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const responseData = await response.json();
+                    
+                    if (response.ok) {
+                        console.log(`Successfully associated document: ${docInfo.file.name}`, responseData);
+                        uploadedCount++;
+                    } else {
+                        failedCount++;
+                        console.error(`Failed to associate document: ${docInfo.file.name}`, responseData);
+                        alert(`Failed to associate document: ${docInfo.file.name} - ${responseData.error || 'Unknown error'}`);
+                    }
                 } else {
-                    failedCount++;
-                    console.error(`Failed to upload document: ${file.name}`);
+                    // Fall back to the old method if no temp_id
+                    formData.append('document', docInfo.file || docInfo);
+                    formData.append('agent_id', agentId);
+                    
+                    // Send request to upload document
+                    const response = await fetch('/upload-document', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const responseData = await response.json();
+                    
+                    if (response.ok) {
+                        console.log(`Successfully uploaded document: ${docInfo.file ? docInfo.file.name : docInfo.name}`, responseData);
+                        uploadedCount++;
+                    } else {
+                        failedCount++;
+                        console.error(`Failed to upload document: ${docInfo.file ? docInfo.file.name : docInfo.name}`, responseData);
+                        alert(`Failed to upload document: ${docInfo.file ? docInfo.file.name : docInfo.name} - ${responseData.error || 'Unknown error'}`);
+                    }
                 }
             } catch (error) {
                 failedCount++;
-                console.error(`Error uploading document: ${file.name}`, error);
+                const fileName = docInfo.file ? docInfo.file.name : (docInfo.name || 'Unknown file');
+                console.error(`Error processing document: ${fileName}`, error);
+                alert(`Error processing document: ${fileName} - ${error.message}`);
             }
         }
         
