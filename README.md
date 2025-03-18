@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Voice Cloning and Processing Tool - Presence.ai
-=======
 # Presence.ai
->>>>>>> cba5a8b2fff0abe5b6df0efb4935a0821020ee90
 
 ## Create Your Digital Twin with Voice Cloning
 
